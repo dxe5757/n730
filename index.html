@@ -1,0 +1,3380 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="POS系統">
+<meta name="theme-color" content="#F7F5F2">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<title>夯肉 HANGROU — POS v40</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=DM+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7F5F2;--surface:#FFFFFF;--surface2:#F1ECE4;--surface3:#E9E1D6;
+  --border:#DDD6CF;--brand:#6B4F3A;--accent:#B08968;--accent2:#8B6F4E;
+  --red:#C94C4C;--green:#4E7D5A;--purple:#8B6F4E;--warn:#D98E32;
+  --text:#2F2F2F;--muted:#666666;--card-bg:#FFFFFF;
+  --shadow-sm:0 1px 3px rgba(107,79,58,.08);
+  --shadow-md:0 2px 10px rgba(107,79,58,.10);
+  --on-accent:#FFFFFF;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;box-shadow:var(--shadow-sm);position:relative;z-index:2;}
+.brand{font-size:17px;font-weight:900;color:var(--brand);letter-spacing:1px;white-space:nowrap;}
+.brand span{color:var(--accent2);font-size:10px;font-weight:400;margin-left:4px;}
+.topbar-info{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:flex-start;gap:1px;margin-right:auto;}
+.biz-day{font-size:10px;color:var(--accent2);}
+.tbtn{padding:7px 13px;border-radius:9px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;box-shadow:var(--shadow-sm);}
+.date-filter-btn.active{background:var(--brand);color:var(--on-accent);border-color:var(--brand);}
+.tbtn:hover{border-color:var(--accent);color:var(--brand);}
+.tbtn.active{background:var(--brand);border-color:var(--brand);color:var(--on-accent);box-shadow:var(--shadow-md);}
+
+/* ── LAYOUT ── */
+.main{display:flex;flex:1;overflow:hidden;position:relative;}
+
+/* ── MENU PANEL ── */
+.menu-panel{display:flex;flex-direction:column;flex:1;overflow:hidden;border-right:1px solid var(--border);}
+.cat-tabs{display:flex;gap:6px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0;}
+.cat-tab{padding:6px 14px;border-radius:18px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Noto Sans TC',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s;}
+.cat-tab:hover{border-color:var(--accent);color:var(--brand);}
+.cat-tab.active{background:var(--brand);border-color:var(--brand);color:var(--on-accent);box-shadow:var(--shadow-sm);}
+.menu-grid{flex:1;overflow-y:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;align-content:start;background:var(--bg);}
+.menu-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:13px 10px;cursor:pointer;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;box-shadow:var(--shadow-sm);}
+.menu-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.menu-card:active{transform:scale(.96);}
+
+.menu-name{font-size:12.5px;font-weight:700;line-height:1.25;color:var(--text);}
+.menu-price{font-family:'DM Mono',monospace;font-size:13.5px;font-weight:700;color:var(--accent2);}
+
+/* ── CART PANEL ── */
+.cart-panel{width:290px;display:flex;flex-direction:column;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);}
+.cart-header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.cart-title{font-size:14.5px;font-weight:900;color:var(--brand);}
+.cart-badge{background:var(--brand);color:var(--on-accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.cart-serial-count{font-family:'DM Mono',monospace;font-size:12px;color:var(--accent2);margin-left:6px;}
+.cart-items{flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:7px;}
+.cart-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;gap:6px;}
+.cart-item-wrap{position:relative;overflow:hidden;border-radius:11px;}
+.cart-item-del-bg{position:absolute;right:0;top:0;bottom:0;width:70px;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:18px;border-radius:11px;opacity:0;transition:opacity .15s;}
+.cart-item{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:9px 11px;position:relative;transition:transform .2s ease;will-change:transform;touch-action:pan-y;box-shadow:var(--shadow-sm);}
+.ci-top{display:flex;align-items:center;gap:6px;}
+.ci-name{font-size:13.5px;font-weight:700;flex:1;color:var(--text);}
+.ci-price{font-family:'DM Mono',monospace;font-size:12.5px;color:var(--accent2);white-space:nowrap;}
+.ci-expand-btn{background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:10px;cursor:pointer;padding:2px 6px;white-space:nowrap;}
+.ci-expand-btn:hover{border-color:var(--accent);color:var(--brand);}
+.ci-rows{display:flex;flex-direction:column;gap:4px;margin-top:6px;}
+.ci-row{display:flex;align-items:center;gap:5px;background:var(--surface2);border-radius:8px;padding:5px 8px;}
+.ci-row-name{font-size:11px;color:var(--muted);flex:1;}
+.ci-row-tags{display:flex;flex-wrap:wrap;gap:3px;flex:1;}
+.ci-row-tag{font-size:9.5px;padding:1px 5px;border-radius:6px;background:rgba(176,137,104,.14);color:var(--accent2);border:1px solid rgba(176,137,104,.25);}
+.ci-row-tag.disc{background:rgba(201,76,76,.1);color:var(--red);border-color:rgba(201,76,76,.2);}
+.ci-row-edit{font-size:10.5px;color:var(--muted);cursor:pointer;padding:2px 5px;border-radius:5px;border:1px solid transparent;}
+.ci-row-edit:hover{border-color:var(--accent);color:var(--brand);}
+.ci-row-del{font-size:11.5px;color:var(--muted);cursor:pointer;padding:2px 4px;border-radius:5px;border:1px solid transparent;line-height:1;}
+.ci-row-del:hover{border-color:var(--red);color:var(--red);}
+.ci-add-row{margin-top:4px;width:100%;padding:5px;border-radius:8px;border:1px dashed var(--border);background:transparent;color:var(--muted);font-size:10.5px;cursor:pointer;transition:all .15s;}
+.ci-add-row:hover{border-color:var(--accent);color:var(--brand);}
+.cart-footer{padding:12px 14px;border-top:1px solid var(--border);background:var(--surface2);}
+.cart-total-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
+.cart-total-label{font-size:12px;color:var(--muted);}
+.cart-serials{font-size:11px;color:var(--accent2);margin-top:1px;}
+.cart-total-val{font-family:'DM Mono',monospace;font-size:21px;font-weight:700;color:var(--brand);}
+.cart-btns{display:flex;gap:7px;}
+.btn-clear{flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Noto Sans TC',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;}
+.btn-clear:hover{border-color:var(--red);color:var(--red);}
+.btn-checkout{flex:2;padding:11px;border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);font-family:'Noto Sans TC',sans-serif;font-size:13px;font-weight:900;cursor:pointer;transition:all .2s;box-shadow:var(--shadow-md);}
+.btn-checkout:hover{background:var(--brand);}
+.btn-checkout:active{transform:scale(.98);}
+.btn-checkout:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+
+/* ── PENDING ORDERS PANEL ── */
+.pending-panel{width:270px;display:flex;flex-direction:column;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);}
+.pending-header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.pending-title{font-size:14.5px;font-weight:900;color:var(--purple);}
+.pending-badge{background:var(--purple);color:var(--on-accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.pending-list{flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:7px;min-height:0;}
+.pending-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;gap:5px;}
+.pend-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow-sm);}
+.pend-head{display:flex;align-items:center;gap:7px;padding:9px 11px;cursor:pointer;}
+.pend-head:hover{background:var(--surface2);}
+.pend-no{font-family:'DM Mono',monospace;font-size:12.5px;color:var(--accent2);font-weight:700;}
+.pend-total{font-family:'DM Mono',monospace;font-size:13.5px;font-weight:700;color:var(--brand);margin-left:auto;}
+.pend-arrow{font-size:10px;color:var(--muted);transition:transform .2s;}
+.pend-arrow.open{transform:rotate(180deg);}
+.pend-body{max-height:0;overflow:hidden;transition:max-height .25s ease;}
+.pend-body.open{max-height:1200px;overflow-y:auto;}
+.pend-body-inner{padding:0 11px 11px;border-top:1px solid var(--border);display:flex;flex-direction:column;}
+.pend-item-row{font-size:12.5px;padding:3px 0;color:var(--muted);display:flex;justify-content:space-between;}
+.pend-item-row span:first-child{color:var(--text);}
+.pend-item-tags{font-size:9.5px;color:var(--accent2);margin-left:5px;}
+.btn-done{width:100%;margin-top:8px;padding:9px;border-radius:9px;border:1.5px solid var(--green);background:rgba(78,125,90,.1);color:var(--green);font-family:'Noto Sans TC',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer;transition:all .2s;position:sticky;bottom:0;z-index:1;}
+.btn-done:hover{background:rgba(78,125,90,.2);}
+
+/* ── SIDE PANELS ── */
+.panel{display:none;flex:1;overflow-y:auto;padding:16px;flex-direction:column;gap:13px;background:var(--bg);}
+.panel.active{display:flex;}
+
+/* ── REPORT ── */
+.rpt-toolbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:12px;box-shadow:var(--shadow-sm);}
+.rpt-tabs{display:flex;gap:5px;}
+.rpt-tab{padding:6px 14px;border-radius:16px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.rpt-tab:hover{border-color:var(--accent);}
+.rpt-tab.active{background:var(--brand);border-color:var(--brand);color:var(--on-accent);}
+.date-input{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;}
+.date-input:focus{border-color:var(--accent);}
+.btn-query{padding:7px 14px;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
+.rpt-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:10px;margin-bottom:13px;}
+.rpt-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:14px 16px;box-shadow:var(--shadow-sm);}
+.rpt-card-label{font-size:11px;color:var(--muted);letter-spacing:.03em;margin-bottom:5px;font-weight:700;}
+.rpt-card-val{font-family:'DM Mono',monospace;font-size:25px;font-weight:700;color:var(--brand);}
+.rpt-card-val.green{color:var(--green);}
+.rpt-card-val.orange{color:var(--accent2);}
+.rpt-card-val.red{color:var(--red);}
+.rpt-two-col{display:grid;grid-template-columns:1fr 1.3fr;gap:12px;align-items:start;}
+.inv-two-col{display:grid;grid-template-columns:1.6fr 1fr;gap:13px;align-items:start;}
+.inv-main-col,.inv-side-col{display:flex;flex-direction:column;gap:13px;min-width:0;}
+.inv-side-col .fg{min-width:0;}
+@media (max-width:980px){.inv-two-col{grid-template-columns:1fr;}}
+#inv-kpi-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;}
+.set-two-col{display:grid;grid-template-columns:1.4fr 1fr;gap:13px;align-items:start;margin-bottom:13px;}
+.hub-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+@media (max-width:640px){.hub-grid{grid-template-columns:1fr;}}
+.hub-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:4px;box-shadow:var(--shadow-sm);position:relative;min-height:130px;transition:all .18s;}
+.hub-card[onclick]{cursor:pointer;}
+.hub-card[onclick]:hover{border-color:var(--accent);box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.hub-card-icon{width:40px;height:40px;border-radius:50%;background:rgba(176,137,104,.14);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:4px;}
+.hub-card-title{font-size:14.5px;font-weight:800;color:var(--text);}
+.hub-card-desc{font-size:11.5px;color:var(--muted);line-height:1.5;flex:1;}
+.hub-card-arrow{position:absolute;top:16px;right:16px;font-size:20px;color:var(--muted);font-weight:700;}
+.set-main-col,.set-side-col{display:flex;flex-direction:column;gap:13px;min-width:0;}
+@media (max-width:980px){.set-two-col{grid-template-columns:1fr;}}
+.rpt-orders-scroll{max-height:520px;overflow-y:auto;padding-right:2px;}
+@media (max-width:900px){.rpt-two-col{grid-template-columns:1fr;}}
+.rpt-section{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:14px;box-shadow:var(--shadow-sm);}
+.rpt-sec-title{font-size:14px;font-weight:700;color:var(--brand);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.btn-export{padding:6px 13px;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent);color:var(--on-accent);font-size:11.5px;font-weight:700;cursor:pointer;transition:all .18s;}
+.btn-export:hover{background:var(--brand);border-color:var(--brand);}
+.order-row{border:1px solid var(--border);border-radius:10px;margin-bottom:6px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-sm);}
+.order-head{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;}
+.order-head:hover{background:var(--surface2);}
+.order-no{font-family:'DM Mono',monospace;font-size:12.5px;color:var(--accent2);font-weight:700;min-width:68px;}
+.order-date{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);flex:1;}
+.order-amt{font-family:'DM Mono',monospace;font-size:13.5px;font-weight:700;color:var(--brand);}
+.order-arrow{font-size:10px;color:var(--muted);transition:transform .2s;}
+.order-arrow.open{transform:rotate(180deg);}
+.order-detail{max-height:0;overflow:hidden;transition:max-height .25s ease;}
+.order-detail.open{max-height:1200px;overflow-y:auto;}
+.order-detail-inner{padding:0 12px 10px;border-top:1px solid var(--border);padding-top:8px;display:flex;flex-direction:column;}
+.od-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;color:var(--muted);}
+.od-row span:first-child{color:var(--text);}
+.od-tags{font-size:9.5px;color:var(--accent2);margin-left:5px;}
+.order-del-btn{margin-top:8px;padding:5px 10px;border-radius:7px;border:1.5px solid rgba(201,76,76,.35);background:var(--surface2);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;position:sticky;bottom:0;align-self:flex-start;}
+.order-del-btn:hover{background:rgba(201,76,76,.1);}
+.no-data{text-align:center;padding:24px;color:var(--muted);font-size:12px;}
+.sales-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px;}
+.sales-row:last-child{border-bottom:none;}
+.sales-bar-wrap{flex:1;margin:0 10px;height:6px;background:var(--surface3);border-radius:4px;overflow:hidden;}
+.sales-bar{height:100%;background:var(--accent);border-radius:4px;transition:width .4s;}
+
+/* ── REPORT PAGE HEADER ── */
+.rpt-page-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin-bottom:2px;}
+.rpt-page-title-wrap{display:flex;align-items:center;gap:9px;}
+.rpt-page-icon{width:30px;height:30px;border-radius:9px;background:var(--surface2);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.rpt-page-title{font-size:19px;font-weight:900;color:var(--text);}
+.rpt-mini-overview{font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;}
+.rpt-mini-overview b{color:var(--text);font-weight:700;}
+.rpt-mini-overview b.warn{color:var(--red);}
+
+/* ── REPORT PAGE KPI CARDS (dedicated to report page only) ── */
+.kpi-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:14px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:14px;}
+.kpi-card-top{display:flex;align-items:center;gap:10px;}
+.kpi-card-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;background:rgba(107,79,58,.10);color:var(--brand);}
+.kpi-card-icon.hero{background:var(--brand);color:#fff;}
+.kpi-card-label{font-size:13px;color:var(--muted);font-weight:700;}
+.kpi-card-val{font-family:'Noto Sans TC',sans-serif;font-size:27px;font-weight:900;color:var(--text);}
+@media (max-width:980px){.kpi-cards{grid-template-columns:repeat(3,1fr);}}
+@media (max-width:640px){.kpi-cards{grid-template-columns:repeat(2,1fr);}}
+
+/* ── REPORT DATE FILTER BAR ── */
+.rpt-filter-tag{font-size:12.5px;font-weight:700;color:var(--muted);white-space:nowrap;}
+#view-report .date-filter-btn{padding:9px 18px;border-radius:10px;font-size:13px;}
+.rpt-date-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;}
+.rpt-date-chevron{color:var(--muted);font-size:11px;}
+
+/* ── REPORT TWO-COLUMN TABLE SECTIONS ── */
+.rpt-sec-link{font-size:11.5px;color:var(--accent2);font-weight:700;cursor:default;white-space:nowrap;}
+.rpt-item-table{width:100%;border-collapse:collapse;font-size:13px;}
+.rpt-item-table th{padding:8px 6px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.03em;border-bottom:1.5px solid var(--border);}
+.rpt-item-table th:not(:first-child),.rpt-item-table td:not(:first-child){text-align:right;}
+.rpt-item-table td{padding:9px 6px;border-bottom:1px solid var(--border);vertical-align:middle;font-family:'DM Mono',monospace;}
+.rpt-item-table td:first-child{font-family:'Noto Sans TC',sans-serif;font-weight:700;display:flex;align-items:center;gap:7px;}
+.rpt-item-table tr:last-child td{border-bottom:none;}
+.rpt-item-table tfoot td{border-bottom:none;border-top:1.5px solid var(--border);font-weight:900;color:var(--brand);padding-top:12px;}
+.rpt-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.rpt-ord-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.rpt-ord-table th{padding:8px 6px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.03em;border-bottom:1.5px solid var(--border);}
+.rpt-ord-table td{padding:9px 6px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.rpt-ord-table tr.rpt-ord-row{cursor:pointer;}
+.rpt-ord-table tr.rpt-ord-row:hover td{background:var(--surface2);}
+.rpt-ord-table tfoot td{border-bottom:none;border-top:1.5px solid var(--border);font-weight:900;color:var(--brand);padding-top:12px;}
+.rpt-ord-detail-cell{background:var(--surface2);padding:10px 14px !important;}
+
+/* ── SETTINGS ── */
+.set-section{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:15px;box-shadow:var(--shadow-sm);}
+.set-title{font-size:14px;font-weight:700;color:var(--brand);margin-bottom:13px;}
+.set-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);}
+.set-item:last-child{border-bottom:none;}
+.set-item-info{flex:1;display:flex;align-items:center;gap:7px;}
+.set-item-name{font-size:13.5px;font-weight:700;color:var(--text);}
+.set-item-cat{font-size:11px;color:var(--muted);}
+.set-item-price{font-family:'DM Mono',monospace;font-size:13px;color:var(--accent2);}
+.set-del{padding:4px 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;}
+.set-del:hover{border-color:var(--red);color:var(--red);}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:11px;}
+.fg{display:flex;flex-direction:column;gap:4px;flex:1;min-width:80px;}
+.fl{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.03em;}
+.fi{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:13px;outline:none;width:100%;}
+.fi:focus{border-color:var(--accent);}
+.fs{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:13px;outline:none;width:100%;}
+.fs option{background:var(--surface);}
+.btn-add-form{padding:9px 16px;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:'Noto Sans TC',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:var(--shadow-sm);transition:background .2s;}
+.btn-add-form:hover{background:var(--brand);}
+.close-box{background:var(--surface);border:1px solid rgba(201,76,76,.3);border-radius:13px;padding:15px;box-shadow:var(--shadow-sm);}
+.close-title{font-size:13px;font-weight:700;color:var(--red);margin-bottom:7px;}
+.close-desc{font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.7;}
+.btn-danger{padding:9px 17px;border-radius:9px;border:1.5px solid var(--red);background:transparent;color:var(--red);font-family:'Noto Sans TC',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;}
+.btn-danger:hover{background:rgba(201,76,76,.1);}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(47,47,47,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(3px);}
+.modal-bg.hidden{display:none;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(107,79,58,.22);}
+.modal-head{padding:14px 17px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.modal-title{font-size:15px;font-weight:900;color:var(--brand);}
+.modal-close{background:transparent;border:none;color:var(--muted);font-size:17px;cursor:pointer;padding:3px 6px;border-radius:6px;}
+.modal-close:hover{color:var(--text);}
+.modal-body{overflow-y:auto;padding:14px 17px;flex:1;}
+.modal-foot{padding:12px 17px;border-top:1px solid var(--border);display:flex;gap:7px;flex-shrink:0;}
+
+/* ── CHECKOUT ── */
+.co-info{background:var(--surface2);border-radius:10px;padding:9px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);}
+.co-serial-total{font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--accent2);}
+.co-items{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+.co-row{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 11px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:border-color .15s;}
+.co-row:hover{border-color:var(--accent);}
+.co-row-left{display:flex;flex-direction:column;gap:3px;flex:1;}
+.co-row-name{font-size:13px;font-weight:700;color:var(--text);}
+.co-row-tags{display:flex;flex-wrap:wrap;gap:3px;}
+.co-row-tag{font-size:9.5px;padding:1px 5px;border-radius:6px;background:rgba(176,137,104,.14);color:var(--accent2);border:1px solid rgba(176,137,104,.25);}
+.co-row-tag.disc{background:rgba(201,76,76,.1);color:var(--red);border-color:rgba(201,76,76,.2);}
+.co-row-price{font-family:'DM Mono',monospace;font-size:13px;color:var(--accent2);white-space:nowrap;}
+.co-row-edit-hint{font-size:9.5px;color:var(--muted);white-space:nowrap;}
+.co-divider{height:1px;background:var(--border);margin:10px 0;}
+.co-disc-block{background:var(--surface2);border-radius:11px;padding:11px;}
+.co-disc-title{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.03em;margin-bottom:8px;}
+.chip-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;}
+.chip{padding:5px 10px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;cursor:pointer;transition:all .12s;}
+.chip:hover{border-color:var(--accent);}
+.chip.active{background:rgba(176,137,104,.16);border-color:var(--accent);color:var(--brand);font-weight:700;}
+.chip.red{color:var(--red);}
+.chip.red.active{background:rgba(201,76,76,.14);border-color:var(--red);color:var(--red);}
+.chip.yellow{color:var(--accent2);}
+.chip.yellow.active{background:rgba(139,111,78,.14);border-color:var(--accent2);color:var(--accent2);}
+.chip-label{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;}
+.gdisc-reason{width:100%;margin-top:5px;background:var(--surface3);border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12px;outline:none;}
+.co-summary{background:var(--surface2);border-radius:11px;padding:11px;margin-top:11px;}
+.co-sum-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;}
+.co-sum-row.total{font-size:16px;font-weight:900;border-top:1px solid var(--border);margin-top:7px;padding-top:8px;}
+.co-sum-row .val{font-family:'DM Mono',monospace;color:var(--muted);}
+.co-sum-row.total .val{color:var(--brand);}
+.co-sum-row .neg{color:var(--red);}
+.pay-section{margin-top:11px;}
+.pay-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.03em;margin-bottom:6px;}
+.pay-inp-row{display:flex;align-items:center;gap:5px;margin-bottom:6px;}
+.pay-prefix{font-size:14px;color:var(--muted);}
+.pay-inp{flex:1;background:var(--surface3);border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:'DM Mono',monospace;font-size:17px;font-weight:600;outline:none;}
+.pay-inp:focus{border-color:var(--accent);}
+.pay-presets{display:flex;gap:4px;flex-wrap:wrap;}
+.pay-btn{padding:6px 11px;border-radius:7px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;}
+.pay-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+.change-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:8px 12px;background:rgba(78,125,90,.1);border:1px solid rgba(78,125,90,.3);border-radius:9px;}
+.change-label{font-size:12px;color:var(--green);}
+.change-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:var(--green);}
+
+/* ── FLAVOR MODAL ── */
+.flavor-item-name{font-size:15px;font-weight:900;margin-bottom:13px;color:var(--brand);}
+.flavor-section{margin-bottom:11px;}
+.flavor-label{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+.flavor-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.fchip{padding:7px 13px;border-radius:11px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:13px;cursor:pointer;transition:all .12s;}
+.fchip:hover{border-color:var(--accent);}
+.fchip.active{background:rgba(176,137,104,.18);border-color:var(--accent);color:var(--brand);font-weight:700;}
+
+/* ── CONFIRM MODAL ── */
+.confirm-msg{font-size:12.5px;line-height:1.75;color:var(--muted);white-space:pre-line;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(48px);background:var(--surface);border:1.5px solid var(--border);border-radius:11px;padding:9px 17px;font-size:12.5px;font-weight:600;color:var(--text);z-index:999;transition:all .3s cubic-bezier(.34,1.56,.64,1);opacity:0;white-space:nowrap;box-shadow:0 6px 20px rgba(107,79,58,.18);}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.toast.ok{border-color:var(--green);color:var(--green);}
+.toast.err{border-color:var(--red);color:var(--red);}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+
+/* ── REPORT/INVENTORY DATE FILTER WRAP ── */
+.rpt-cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:13px 15px;box-shadow:var(--shadow-sm);}
+
+/* ── INVENTORY ── */
+.inv-table{width:100%;border-collapse:collapse;font-size:13px;}
+.inv-table th{padding:8px 9px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.03em;border-bottom:1.5px solid var(--border);}
+.inv-table td{padding:9px 9px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.inv-table tr:last-child td{border-bottom:none;}
+.inv-table tr:hover td{background:var(--surface2);}
+.inv-tag-low{display:inline-block;padding:2px 8px;border-radius:8px;background:rgba(201,76,76,.1);color:var(--red);font-size:11px;font-weight:700;}
+.inv-tag-ok{display:inline-block;padding:2px 8px;border-radius:8px;background:rgba(78,125,90,.1);color:var(--green);font-size:11px;font-weight:700;}
+.inv-edit-inp{background:var(--surface2);border:1.5px solid var(--accent);border-radius:7px;padding:4px 8px;color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:12.5px;outline:none;width:100%;}
+.inv-profit-pos{color:var(--green);font-family:'DM Mono',monospace;font-weight:700;}
+.inv-profit-neg{color:var(--red);font-family:'DM Mono',monospace;font-weight:700;}
+.inv-rec-type-in{color:var(--accent2);font-size:11px;font-weight:700;}
+.inv-rec-type-adj{color:var(--purple);font-size:11px;font-weight:700;}
+.inv-cal-clear{color:var(--accent2);cursor:pointer;font-weight:400;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand" id="brand-name"></div>
+  <div class="topbar-info">
+    <span id="top-time" style="font-family:'DM Mono',monospace;font-size:11px;"></span>
+    <span class="biz-day" id="top-biz"></span>
+  </div>
+  <button class="tbtn active" id="btn-pos" onclick="showView('pos')">🍽️ 點餐</button>
+  <button class="tbtn" id="btn-rpt" onclick="showView('report')">📊 報表</button>
+  <button class="tbtn" id="btn-inv" onclick="showView('inventory')">📦 庫存</button>
+  <button class="tbtn" id="btn-set" onclick="showView('settings')">⚙️ 設定</button>
+</div>
+
+<!-- POS VIEW -->
+<div class="main" id="view-pos">
+
+  <!-- Shift gate: 未開班時蓋住點餐畫面，其他頁面（庫存/報表/設定）不受影響 -->
+  <div id="shift-gate" style="display:none;position:absolute;inset:0;z-index:50;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;">
+    <div style="font-size:15px;font-weight:700;color:var(--text);">🚀 尚未開班</div>
+    <div style="font-size:12px;color:var(--muted);max-width:320px;line-height:1.7;">按下開班後才能點餐、建立訂單與結帳。商品管理、進貨、庫存修正、報表、月結、備份還原、設定不受影響，隨時都能使用。</div>
+    <button class="btn-add-form" style="padding:12px 28px;font-size:14px;" onclick="startShift()">🚀 開班</button>
+  </div>
+
+  <!-- MENU -->
+  <div class="menu-panel">
+    <div class="cat-tabs" id="cat-tabs"></div>
+    <div class="menu-grid" id="menu-grid"></div>
+  </div>
+
+  <!-- CART -->
+  <div class="cart-panel">
+    <div class="cart-header">
+      <span class="cart-title">🛒 購物車</span>
+      <span class="cart-badge" id="cart-badge">0</span>
+      <span class="cart-serial-count" id="cart-serial-label"></span>
+    </div>
+    <div class="cart-items" id="cart-items">
+      <div class="cart-empty"><div style="font-size:32px">🛒</div><span>尚未點選任何商品</span></div>
+    </div>
+    <div class="cart-footer">
+      <div class="cart-total-row">
+        <div>
+          <div class="cart-total-label">總計</div>
+          <div class="cart-serials" id="cart-serials-info"></div>
+        </div>
+        <span class="cart-total-val" id="cart-total">$0</span>
+      </div>
+      <div class="cart-btns">
+        <button class="btn-clear" onclick="clearCart()">清空</button>
+        <button class="btn-checkout" id="btn-checkout" onclick="openCheckout()" disabled>結帳</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PENDING ORDERS -->
+  <div class="pending-panel">
+    <div class="pending-header">
+      <span class="pending-title">📋 未完成單</span>
+      <span class="pending-badge" id="pending-badge">0</span>
+    </div>
+    <div class="pending-list" id="pending-list">
+      <div class="pending-empty"><div style="font-size:28px">✅</div><span>目前無未完成單</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- REPORT VIEW -->
+<div class="panel" id="view-report">
+  <!-- Page header + compact overview line (今日/本月/低庫存提醒仍保留顯示，只是改成小字條，不再佔用整排大卡片) -->
+  <div class="rpt-page-head">
+    <div class="rpt-page-title-wrap">
+      <div class="rpt-page-icon">📊</div>
+      <div class="rpt-page-title">營業報表</div>
+    </div>
+    <div id="rpt-top-kpis"></div>
+  </div>
+
+  <div class="rpt-cal-wrap">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <span class="rpt-filter-tag">日期範圍</span>
+      <button class="tbtn date-filter-btn" id="rpt-f-today" onclick="setRptFilter('today')">今日</button>
+      <button class="tbtn date-filter-btn" id="rpt-f-week" onclick="setRptFilter('week')">本週</button>
+      <button class="tbtn date-filter-btn" id="rpt-f-month" onclick="setRptFilter('month')">本月</button>
+      <button class="tbtn date-filter-btn" id="rpt-f-custom" onclick="setRptFilter('custom')">自訂日期</button>
+      <input class="fi" id="rpt-custom-date" type="date" style="display:none;max-width:150px;" onchange="onRptCustomDateChange()">
+      <div class="rpt-date-badge" style="margin-left:auto;">
+        <span>📅</span><span id="rpt-filter-label"></span><span class="rpt-date-chevron">⌄</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="rpt-content" style="display:flex;flex-direction:column;gap:12px;"></div>
+</div>
+
+<!-- INVENTORY VIEW -->
+<div class="panel" id="view-inventory">
+
+  <!-- Inventory KPI overview cards -->
+  <div id="inv-kpi-cards"></div>
+
+  <div class="inv-two-col">
+    <!-- LEFT: main content -->
+    <div class="inv-main-col">
+
+      <!-- Inventory summary table -->
+      <div class="set-section">
+        <div class="set-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <span>📊 庫存現況 <span style="font-size:10px;color:var(--muted);font-weight:400;">（銷售數量從當日關帳統計自動帶入）</span></span>
+          <select class="fs" id="inv-status-filter" style="width:auto;padding:4px 8px;font-size:11px;" onchange="renderInventory()">
+            <option value="active">啟用商品</option>
+            <option value="inactive">停賣商品</option>
+            <option value="all">全部商品</option>
+          </select>
+        </div>
+        <div id="inv-summary"></div>
+      </div>
+
+      <!-- Month-end closing history -->
+      <div class="set-section">
+        <div class="set-title">📚 月結紀錄</div>
+        <div id="mc-records"></div>
+      </div>
+
+      <!-- Stock records: 今日｜本週｜本月｜自訂日期（次要區塊，不佔主要版面） -->
+      <div class="set-section">
+        <div class="set-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <span>📋 庫存異動</span>
+          <input class="fi" id="inv-filter-item" placeholder="搜尋品項" style="width:120px;padding:4px 8px;font-size:11px;" oninput="renderInvRecords()">
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;">
+          <button class="tbtn date-filter-btn" id="inv-f-today" onclick="setInvFilter('today')">今日</button>
+          <button class="tbtn date-filter-btn" id="inv-f-week" onclick="setInvFilter('week')">本週</button>
+          <button class="tbtn date-filter-btn" id="inv-f-month" onclick="setInvFilter('month')">本月</button>
+          <button class="tbtn date-filter-btn" id="inv-f-custom" onclick="setInvFilter('custom')">📅 自訂日期</button>
+          <input class="fi" id="inv-custom-date" type="date" style="display:none;max-width:150px;" onchange="onInvCustomDateChange()">
+        </div>
+        <div id="inv-records" style="margin-top:10px;"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: sidebar -->
+    <div class="inv-side-col">
+
+      <!-- Add stock form -->
+      <div class="set-section">
+        <div class="set-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <span>📥 新增進貨</span>
+          <select class="fs" id="purchase-status-filter" style="width:auto;padding:4px 8px;font-size:11px;" onchange="initInvSelectors()">
+            <option value="active">啟用商品</option>
+            <option value="inactive">停賣商品</option>
+            <option value="all">全部商品</option>
+          </select>
+        </div>
+        <div class="form-row" style="flex-direction:column;align-items:stretch;">
+          <div class="fg">
+            <label class="fl">品項</label>
+            <select class="fs" id="inv-item-sel"></select>
+          </div>
+          <div class="fg">
+            <label class="fl">進貨數量</label>
+            <input class="fi" id="inv-qty" type="number" placeholder="0" min="1">
+          </div>
+          <div class="fg">
+            <label class="fl">進價（每串）</label>
+            <input class="fi" id="inv-cost" type="number" placeholder="0" min="0">
+          </div>
+          <div class="fg">
+            <label class="fl">日期</label>
+            <input class="fi" id="inv-date" type="date">
+          </div>
+          <button class="btn-add-form" style="width:100%;" onclick="addStock()">＋新增進貨</button>
+        </div>
+      </div>
+
+      <!-- Month-end closing -->
+      <div class="set-section">
+        <div class="set-title">📅 月結 <span style="font-size:10px;color:var(--muted);font-weight:400;">（自行選擇要結算到哪一天，不限月底）</span></div>
+        <div class="form-row" style="flex-direction:column;align-items:stretch;">
+          <div class="fg">
+            <label class="fl">月結日期</label>
+            <input class="fi" id="mc-date" type="date" onchange="renderMonthClosePreview()">
+          </div>
+          <button class="btn-add-form" style="width:100%;" onclick="doMonthClose()">🔒 執行月結</button>
+        </div>
+        <button class="tbtn" id="mc-toggle-btn" style="width:100%;margin-top:8px;" onclick="toggleMcPreview()">📖 查看本月月結 ▾</button>
+        <div id="mc-preview" style="display:none;margin-top:10px;"></div>
+      </div>
+
+      <!-- Stock correction: 入口卡片，點擊才展開內容 -->
+      <div class="set-section">
+        <div class="set-title">✅ 庫存盤點</div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">盤點可更新實際庫存數量</p>
+        <button class="btn-add-form" style="width:100%;" onclick="openModal('modal-stockfix')">開始盤點</button>
+      </div>
+
+      <!-- Low stock reminder -->
+      <div class="set-section">
+        <div class="set-title">🔔 低庫存提醒</div>
+        <div id="inv-low-stock"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- STOCK CORRECTION MODAL（庫存盤點／庫存修正） -->
+<div class="modal-bg hidden" id="modal-editrec">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head">
+      <span class="modal-title" id="editrec-title">✏️ 編輯庫存異動</span>
+      <button class="modal-close" onclick="closeModal('modal-editrec')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="flex-direction:column;align-items:stretch;">
+        <div class="fg">
+          <label class="fl">品項</label>
+          <input class="fi" id="er-itemname" type="text" disabled style="opacity:.7;">
+        </div>
+        <div class="fg">
+          <label class="fl">日期</label>
+          <input class="fi" id="er-date" type="date">
+        </div>
+        <div class="fg">
+          <label class="fl" id="er-qty-label">數量</label>
+          <input class="fi" id="er-qty" type="number">
+        </div>
+        <div class="fg" id="er-cost-wrap">
+          <label class="fl">進價（每串）</label>
+          <input class="fi" id="er-cost" type="number" min="0">
+        </div>
+        <div class="fg">
+          <label class="fl">備註（選填）</label>
+          <input class="fi" id="er-note" placeholder="選填">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="tbtn" style="flex:1" onclick="closeModal('modal-editrec')">取消</button>
+      <button class="btn-add-form" style="flex:2;" onclick="submitEditRecord()">✅ 儲存修改</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg hidden" id="modal-stockfix">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head">
+      <span class="modal-title">✅ 庫存盤點</span>
+      <button class="modal-close" onclick="closeModal('modal-stockfix')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <select class="fs" id="take-status-filter" style="width:auto;padding:4px 8px;font-size:11px;" onchange="renderStockCorrectionForm()">
+          <option value="active">啟用商品</option>
+          <option value="inactive">停賣商品</option>
+          <option value="all">全部商品</option>
+        </select>
+      </div>
+      <div class="form-row" style="flex-direction:column;align-items:stretch;">
+        <div class="fg">
+          <label class="fl">商品</label>
+          <select class="fs" id="fix-item-sel" onchange="onFixItemChange()"></select>
+        </div>
+        <div class="fg">
+          <label class="fl">目前庫存</label>
+          <input class="fi" id="fix-current" type="text" value="0" disabled style="opacity:.7;">
+        </div>
+        <div class="fg">
+          <label class="fl">修正後庫存</label>
+          <input class="fi" id="fix-new" type="number" placeholder="0">
+        </div>
+        <div class="fg">
+          <label class="fl">日期</label>
+          <input class="fi" id="fix-date" type="date">
+        </div>
+        <div class="fg">
+          <label class="fl">原因（選填）</label>
+          <input class="fi" id="fix-reason" placeholder="例如：破損、盤點誤差…">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="tbtn" style="flex:1" onclick="closeModal('modal-stockfix')">取消</button>
+      <button class="btn-add-form" style="flex:2;" onclick="submitStockCorrection()">✅ 確認修正</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS VIEW -->
+<div class="panel" id="view-settings">
+
+  <!-- ══ HUB VIEW：6張小卡 + 右側系統狀態/版本資訊 ══ -->
+  <div id="settings-hub" class="set-two-col">
+    <div class="set-main-col">
+      <div class="hub-grid">
+        <div class="hub-card">
+          <div class="hub-card-icon">🔒</div>
+          <div class="hub-card-title">關帳</div>
+          <div class="hub-card-desc">進行日結作業／關閉營業日</div>
+          <button class="btn-danger" style="width:100%;margin-top:auto;" onclick="doCloseDay()">立即關帳</button>
+        </div>
+
+        <div class="hub-card">
+          <div class="hub-card-icon">🚀</div>
+          <div class="hub-card-title">開始正式營業</div>
+          <div class="hub-card-desc">清除測試資料並開始新營業日</div>
+          <button class="btn-danger" style="width:100%;margin-top:auto;" onclick="openModal('modal-startbiz')">開始營業</button>
+        </div>
+
+        <div class="hub-card" onclick="setSettingsView('menu')">
+          <div class="hub-card-icon">🍽️</div>
+          <div class="hub-card-title">品項管理</div>
+          <div class="hub-card-desc">管理商品、分類、庫存與售價</div>
+          <div class="hub-card-arrow">›</div>
+        </div>
+
+        <div class="hub-card" onclick="setSettingsView('discount')">
+          <div class="hub-card-icon">🎉</div>
+          <div class="hub-card-title">折扣管理</div>
+          <div class="hub-card-desc">設定折扣方案與優惠</div>
+          <div class="hub-card-arrow">›</div>
+        </div>
+
+        <div class="hub-card">
+          <div class="hub-card-icon">💾</div>
+          <div class="hub-card-title">資料備份</div>
+          <div class="hub-card-desc">匯出完整資料備份／還原先前備份的資料</div>
+          <div style="display:flex;gap:6px;margin-top:auto;">
+            <button class="btn-add-form" style="flex:1;" onclick="backupData()">匯出備份</button>
+            <button class="tbtn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="document.getElementById('restore-file-inp').click()">還原備份</button>
+          </div>
+          <input type="file" id="restore-file-inp" accept="application/json,.json" style="display:none;" onchange="handleRestoreFile(this)">
+        </div>
+
+        <div class="hub-card" onclick="setSettingsView('store')">
+          <div class="hub-card-icon">🏪</div>
+          <div class="hub-card-title">店家設定</div>
+          <div class="hub-card-desc">設定店家名稱</div>
+          <div class="hub-card-arrow">›</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="set-side-col">
+      <div class="set-section">
+        <div class="set-title">🩺 系統狀態</div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:11px;">
+          檢查商品、庫存、交易、進貨、月結、報表之間是否有異常（負庫存、超賣、沒有成本的品項、異常庫存金額等），月結前也會自動做同樣的檢查。
+        </p>
+        <button class="btn-add-form" onclick="runHealthCheck()">🔍 執行健康檢查</button>
+        <div id="health-check-result" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="set-section">
+        <div class="set-title">ℹ️ 版本資訊</div>
+        <div id="version-info" style="font-size:11px;color:var(--muted);line-height:1.9;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 品項管理 子畫面 ══ -->
+  <div id="settings-menu" style="display:none;">
+    <button class="tbtn" style="margin-bottom:12px;" onclick="setSettingsView('hub')">← 返回設定</button>
+
+    <div class="set-section" style="margin-bottom:12px;">
+      <div class="set-title">🗂️ 類別管理</div>
+      <div class="form-row">
+        <div class="fg" style="flex:0 0 200px;max-width:200px;"><label class="fl">新增類別</label><input class="fi" id="new-cat-inp" placeholder="例：海鮮、甜點…"></div>
+        <button class="btn-add-form" onclick="addCategoryFromInput()">＋新增類別</button>
+      </div>
+      <div id="cat-mgmt-list"></div>
+    </div>
+
+    <div class="set-section">
+      <div class="set-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <span>🍽️ 品項管理</span>
+        <select class="fs" id="menu-status-filter" style="width:auto;padding:4px 8px;font-size:11px;" onchange="renderSettings()">
+          <option value="active">啟用商品</option>
+          <option value="inactive">停賣商品</option>
+          <option value="all">全部商品</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="fg" style="flex:0 0 160px;max-width:160px;"><label class="fl">名稱</label><input class="fi" id="si-name" placeholder="品項名稱" maxlength="10"></div>
+        <div class="fg" style="flex:0 0 160px;max-width:160px;"><label class="fl">分類</label><select class="fs" id="si-cat"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="fg" style="flex:0 0 100px;max-width:100px;"><label class="fl">售價</label><input class="fi" id="si-price" type="number" placeholder="0"></div>
+        <div class="fg" style="flex:0 0 130px;max-width:130px;"><label class="fl">最低庫存</label><input class="fi" id="si-minstock" type="number" placeholder="留空＝不提醒"></div>
+      </div>
+      <div class="form-row">
+        <button class="btn-add-form" style="width:100%;" onclick="addMenuItem()">＋新增商品</button>
+      </div>
+      <div id="menu-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ 折扣管理 子畫面 ══ -->
+  <div id="settings-discount" style="display:none;">
+    <button class="tbtn" style="margin-bottom:12px;" onclick="setSettingsView('hub')">← 返回設定</button>
+    <div class="set-section">
+      <div class="set-title">🎉 活動折扣</div>
+      <div class="form-row">
+        <div class="fg" style="flex:1 1 200px;"><label class="fl">活動名稱</label><input class="fi" id="ad-name" placeholder="例：週末優惠"></div>
+        <div class="fg" style="max-width:120px;"><label class="fl">類型</label><select class="fs" id="ad-type"><option value="fixed">金額 ($)</option><option value="pct">比例 (%)</option></select></div>
+        <div class="fg" style="max-width:76px;"><label class="fl">數值</label><input class="fi" id="ad-val" type="number" placeholder="50"></div>
+        <button class="btn-add-form" onclick="addActDisc()">＋新增</button>
+      </div>
+      <div id="act-disc-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ 店家設定 子畫面 ══ -->
+  <div id="settings-store" style="display:none;">
+    <button class="tbtn" style="margin-bottom:12px;" onclick="setSettingsView('hub')">← 返回設定</button>
+    <div class="set-section" style="max-width:420px;">
+      <div class="set-title">🏪 店家名稱</div>
+      <div class="form-row" style="flex-direction:column;align-items:stretch;">
+        <div class="fg">
+          <label class="fl">顯示名稱</label>
+          <input class="fi" id="store-name-inp" placeholder="夯肉 HANGROU">
+        </div>
+        <button class="btn-add-form" style="width:100%;" onclick="saveStoreName()">儲存</button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px;">更改後頂部標題、PDF 報表都會同步更新</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- START REAL BUSINESS MODAL -->
+<div class="modal-bg hidden" id="modal-startbiz">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <span class="modal-title">🚀 開始正式營業</span>
+      <button class="modal-close" onclick="closeModal('modal-startbiz')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="close-desc" style="margin-bottom:12px;">
+        正式開幕前，用這個功能清掉測試期間累積的假交易資料，重新從 0 開始統計。商品資料、商品分類、售價、最低庫存、停賣狀態、店名與系統設定一定會保留；下面兩項可以自己選擇要不要一併保留。<br><br>
+        執行後一定會清除：所有訂單／交易紀錄／作廢紀錄、進貨紀錄、進貨修正紀錄、庫存修正紀錄、月結紀錄、報表統計、本期進貨／銷售／營業額／毛利／盤盈盤損。<br>
+        <b style="color:var(--red);">此動作無法復原，且不會自動執行——只有您手動按下按鈕才會清除。</b>更新版本、換設備、還原備份都「不會」觸發這個功能。
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin:10px 0;font-size:12px;">
+        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" checked disabled style="width:16px;height:16px;accent-color:var(--accent);"> 商品資料／商品分類／商品售價／最低庫存／停賣狀態／店名／系統設定（一定保留）</label>
+        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="keep-stock-qty" style="width:16px;height:16px;accent-color:var(--accent);"> 保留目前庫存數量</label>
+        <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="keep-avg-cost" style="width:16px;height:16px;accent-color:var(--accent);"> 保留平均進價</label>
+      </div>
+      <div class="form-row" style="margin-top:10px;">
+        <div class="fg" style="max-width:170px;"><label class="fl">正式營業開始日期</label><input class="fi" id="biz-start-date" type="date"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="tbtn" style="flex:1" onclick="closeModal('modal-startbiz')">取消</button>
+      <button class="btn-danger" style="flex:2;" onclick="startRealBusinessStep1()">🚀 開始正式營業（清除測試資料）</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHECKOUT MODAL -->
+<div class="modal-bg hidden" id="modal-co">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <span class="modal-title">💳 結帳付款</span>
+      <button class="modal-close" onclick="closeModal('modal-co')">✕</button>
+    </div>
+    <div class="modal-body" id="co-body"></div>
+    <div class="modal-foot">
+      <button class="tbtn" style="flex:1" onclick="closeModal('modal-co')">取消</button>
+      <button class="btn-checkout" style="flex:2;border-radius:8px;" onclick="confirmPay()">確認付款</button>
+    </div>
+  </div>
+</div>
+
+<!-- FLAVOR MODAL -->
+<div class="modal-bg hidden" id="modal-flavor">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-head">
+      <span class="modal-title" id="flavor-title">🌶️ 口味設定</span>
+      <button class="modal-close" onclick="closeModal('modal-flavor')">✕</button>
+    </div>
+    <div class="modal-body" id="flavor-body"></div>
+    <div class="modal-foot">
+      <button class="btn-checkout" style="flex:1;border-radius:8px;" onclick="saveFlavor()">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-bg hidden" id="modal-confirm">
+  <div class="modal" style="max-width:340px;">
+    <div class="modal-head">
+      <span class="modal-title" id="confirm-title">確認</span>
+      <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+    </div>
+    <div class="modal-body"><p class="confirm-msg" id="confirm-msg"></p></div>
+    <div class="modal-foot">
+      <button class="tbtn" style="flex:1" onclick="closeModal('modal-confirm')">取消</button>
+      <button class="btn-danger" style="flex:1" id="confirm-ok">確定</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+// STORAGE
+// ══════════════════════════════════════════════════
+const LS={
+  get:k=>{try{return JSON.parse(localStorage.getItem('hr_'+k))}catch{return null}},
+  set:(k,v)=>localStorage.setItem('hr_'+k,JSON.stringify(v))
+};
+
+// ══════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════
+const DEFAULT_MENU=[
+  {id:1,name:'牛肉串',   cat:'牛肉',emoji:'🥩',price:80},
+  {id:2,name:'霜降牛',   cat:'牛肉',emoji:'🥩',price:120},
+  {id:3,name:'牛舌',     cat:'牛肉',emoji:'🥩',price:100},
+  {id:4,name:'豬五花',   cat:'豬肉',emoji:'🐖',price:60},
+  {id:5,name:'豬頸肉',   cat:'豬肉',emoji:'🐖',price:65},
+  {id:6,name:'豬心',     cat:'豬肉',emoji:'🐖',price:50},
+  {id:7,name:'雞肉串',   cat:'雞肉',emoji:'🐔',price:50},
+  {id:8,name:'雞翅',     cat:'雞肉',emoji:'🐔',price:70},
+  {id:9,name:'雞皮',     cat:'雞肉',emoji:'🐔',price:40},
+  {id:10,name:'烤香菇',  cat:'蔬菜',emoji:'🍄',price:35},
+  {id:11,name:'玉米筍',  cat:'蔬菜',emoji:'🌽',price:35},
+  {id:12,name:'青椒',    cat:'蔬菜',emoji:'🫑',price:30},
+  {id:13,name:'烤飯糰',  cat:'串燒',emoji:'🍙',price:45},
+  {id:14,name:'米血糕',  cat:'串燒',emoji:'🍢',price:40},
+  {id:15,name:'甜不辣',  cat:'串燒',emoji:'🍢',price:40},
+  {id:16,name:'台灣啤酒',cat:'飲料',emoji:'🍺',price:55},
+  {id:17,name:'可樂',    cat:'飲料',emoji:'🥤',price:30},
+  {id:18,name:'水',      cat:'飲料',emoji:'💧',price:20},
+];
+const CICON={'全部':'🍽️','牛肉':'🐂','豬肉':'🐖','雞肉':'🐔','蔬菜':'🥬','串燒':'🍢','飲料':'🍺'};
+const SPICE=['不辣','微辣','中辣','大辣'];
+const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
+const SAUCE=['正常','醬多','醬少','去醬'];
+
+// ── STATE ──
+const APP_VERSION='v40';
+const APP_BUILD_DATE='2026-07-30';
+let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
+let MENU       = LS.get('menu')       || DEFAULT_MENU;
+// migrate legacy menu items: ensure active/minStock fields exist (never drop existing items/data)
+MENU = MENU.map(m=>({ active:true, minStock:null, ...m }));
+LS.set('menu', MENU);
+// 類別清單（v40 新增）：獨立於商品資料存在，讓「新增類別」可以先建立空類別、之後再指派品項。
+// 舊資料沒有這個 key 時，從既有商品的 cat 欄位還原一份，不影響任何既有商品/分類資料。
+let categories = LS.get('categories');
+if(!categories || !Array.isArray(categories)){
+  categories = [...new Set(MENU.map(m=>m.cat).filter(Boolean))];
+  LS.set('categories', categories);
+}
+let orders     = LS.get('orders')     || [];  // current session orders only
+let closedDays   = LS.get('closedDays')   || [];
+let stockRecords = LS.get('stockRecords') || []; // [{id,date,itemId,itemName,qty,cost,sellPrice,type}] — IMMUTABLE once saved; use stockCorrections to fix mistakes
+let stockNid     = Math.max(...(LS.get('stockRecords')||[]).map(r=>r.id||0), 0)+1;
+let stockCorrections = LS.get('stockCorrections') || []; // [{id,originalId,itemName,date,oldQty,newQty,oldCost,newCost,reason,correctedAt}]
+let corrNid = Math.max(...(LS.get('stockCorrections')||[]).map(c=>c.id||0), 0)+1;
+let monthCloses  = LS.get('monthCloses') || []; // [{id,closeDate,periodStart,periodEnd,closedAt,inQty,inAmt,soldQty,soldAmt,adjQty,endItems,endQtyTotal,endValueTotal,locked}]
+// migrate legacy month-based close records (v31 and earlier used {month:'YYYY-MM'}) to the new
+// arbitrary-close-date shape, so existing locked months keep working without losing any data.
+monthCloses = monthCloses.map(c=>{
+  if(c.closeDate) return c; // already new format
+  if(c.month){
+    const [y,mo]=c.month.split('-').map(Number);
+    const lastDay=new Date(y,mo,0).getDate();
+    return {...c,
+      closeDate: `${c.month}-${String(lastDay).padStart(2,'0')}`,
+      periodStart: `${c.month}-01`,
+      periodEnd: `${c.month}-${String(lastDay).padStart(2,'0')}`
+    };
+  }
+  return c;
+});
+LS.set('monthCloses', monthCloses);
+let pending  = LS.get('pending')  || []; // completed (paid) but not served
+let actDiscs = LS.get('actdisc')  || [];
+let businessStartDate = LS.get('businessStartDate') || null;
+let firstShiftDate = LS.get('firstShiftDate') || null; // 第一次開班的日期＝第一個營業期間的起始日
+// 遷移備援：舊版沒有記錄 firstShiftDate，若已經有營業紀錄，從既有資料推斷一個合理的起始日，
+// 避免舊帳號在這次更新後，本期起始日錯誤地掉回不存在的預設日期。
+if(!firstShiftDate){
+  const _cd=LS.get('closedDays')||[];
+  const _mc=LS.get('monthCloses')||[];
+  const _sr=LS.get('stockRecords')||[];
+  const candidates=[
+    ..._cd.map(d=>d.bizDay),
+    ..._mc.map(c=>c.periodStart).filter(d=>d && d!=='2000-01-01'),
+    ..._sr.map(r=>r.date),
+    LS.get('bizday')
+  ].filter(Boolean);
+  if(candidates.length){ firstShiftDate=candidates.reduce((mn,d)=>d<mn?d:mn, candidates[0]); LS.set('firstShiftDate',firstShiftDate); }
+}
+let bizDay   = (()=>{
+  const stored = LS.get('bizday');
+  if(stored) return stored;
+  // First ever launch only: seed today as starting bizDay
+  const d=new Date();
+  const s=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  localStorage.setItem('hr_bizday', JSON.stringify(s));
+  return s;
+})();
+let orderNum = LS.get('ordernum') || 1;
+let shiftOpen = LS.get('shiftOpen') || false; // 開班狀態：只能由使用者手動按「開班」/「關帳」切換，絕不自動變更
+let dailySales = LS.get('dailySales') || {}; // {bizDay: {itemName: qty}} — sales *activity* log, used for reports only
+let menuNid  = Math.max(...MENU.map(m=>m.id),0)+1;
+let adNid    = Math.max(...actDiscs.map(a=>a.id||0),0)+1;
+
+// ══════════════════════════════════════════════════
+// UNIFIED STOCK LEDGER (moving-average cost)
+// Every feature that changes stock — new order, void order,
+// new purchase, purchase correction, stock take, month close —
+// MUST go through adjustStock() below. Nothing else may write
+// stock quantity/cost directly. This is the single source of
+// truth for "目前庫存" and "平均成本" across the whole app.
+// ══════════════════════════════════════════════════
+function migrateStockState(){
+  // Runs once (only when no ledger exists yet) so upgrading never loses history:
+  // rebuild an initial ledger from the existing purchase log + historical sales.
+  const recs=[...(LS.get('stockRecords')||[])].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:(a.id-b.id));
+  const state={};
+  recs.forEach(r=>{
+    if(!state[r.itemName]) state[r.itemName]={qty:0,avgCost:0};
+    const s=state[r.itemName];
+    if(r.qty>0){
+      const newQty=s.qty+r.qty;
+      s.avgCost = s.qty>0 ? ((s.qty*s.avgCost)+(r.qty*r.cost))/newQty : r.cost;
+      s.qty=newQty;
+    } else {
+      s.qty+=r.qty;
+    }
+  });
+  const salesMap={};
+  (LS.get('closedDays')||[]).forEach(d=>{ Object.entries(d.dailySales||{}).forEach(([n,q])=>{ salesMap[n]=(salesMap[n]||0)+q; }); });
+  Object.values(LS.get('dailySales')||{}).forEach(dayMap=>{ Object.entries(dayMap||{}).forEach(([n,q])=>{ salesMap[n]=(salesMap[n]||0)+q; }); });
+  Object.entries(salesMap).forEach(([name,qty])=>{
+    if(!state[name]) state[name]={qty:0,avgCost:0};
+    state[name].qty-=qty; // sale deduction never changes average cost
+  });
+  Object.values(state).forEach(s=>{ s.avgCost=Math.round(s.avgCost*100)/100; });
+  return state;
+}
+let stockState = LS.get('stockState');
+if(!stockState){ stockState = migrateStockState(); LS.set('stockState', stockState); }
+
+function ensureStockItem(name){
+  if(!stockState[name]) stockState[name]={qty:0,avgCost:0};
+  return stockState[name];
+}
+// deltaQty>0 with a unitCost => stock coming IN at a known cost (purchase / correction), recalculated via moving average.
+// deltaQty<0, or deltaQty>0 with unitCost=null => quantity-only movement (sale, void-restore, stocktake) that does NOT change avgCost.
+function adjustStock(name, deltaQty, unitCost){
+  const s=ensureStockItem(name);
+  if(deltaQty>0 && unitCost!=null && !isNaN(unitCost)){
+    const newQty=s.qty+deltaQty;
+    s.avgCost = s.qty>0 ? (((s.qty*s.avgCost)+(deltaQty*unitCost))/newQty) : unitCost;
+    s.avgCost = Math.round(s.avgCost*100)/100;
+    s.qty=newQty;
+  } else {
+    s.qty+=deltaQty;
+  }
+  stockState=LS.get('stockState')||stockState; // avoid clobbering concurrent tab writes where possible
+  stockState[name]=s;
+  LS.set('stockState',stockState);
+  return {...s};
+}
+function getStock(name){ stockState=LS.get('stockState')||stockState; return stockState[name]||{qty:0,avgCost:0}; }
+
+// ── Display formatters (data itself always stays in YYYY-MM-DD / raw number internally) ──
+function dispDate(v){
+  if(!v) return '';
+  const s=String(v).slice(0,10);
+  const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[1]}/${m[2]}/${m[3]}` : s;
+}
+function fmtMoney(n){
+  n=Math.round(Number(n)||0);
+  const neg=n<0; n=Math.abs(n);
+  return (neg?'-$':'$')+n.toLocaleString('en-US');
+}
+
+// cart: array of {menuId, rows:[{spice,pepper,sauce,itemDisc}]}
+// each row = 1 serial (串)
+let cart=[], currentCat='全部', expandedCart={};
+let rptFilterMode='today', rptCustomDate=null; // 報表：今日｜本週｜本月｜自訂日期
+let invFilterMode='today', invCustomDate=null; // 庫存異動：同上
+let pendingChecked={}; // {rowKey: bool} - survives re-renders
+
+// checkout state
+let coState={}, globalDisc=0, globalDiscPct=0, discReason='', selActDisc=null, receivedAmt=0;
+
+// flavor edit state
+let flavorTarget=null; // {cartIdx, rowIdx}
+let flavorTemp={};
+
+function todayStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtD(iso){ return dispDate(iso); }
+function fmtT(iso){ return new Date(iso).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}); }
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════
+// SWIPE TO DELETE
+// ══════════════════════════════════════════════════
+function bindSwipe(){
+  document.querySelectorAll('.cart-item[data-ci]').forEach(el=>{
+    const ci=parseInt(el.dataset.ci);
+    const bg=document.getElementById('delbg-'+ci);
+    let startX=0, curX=0, dragging=false, confirmed=false;
+    const THRESHOLD=65;
+
+    function onStart(x){
+      startX=x; curX=x; dragging=true; confirmed=false;
+      el.style.transition='none';
+    }
+    function onMove(x){
+      if(!dragging) return;
+      curX=x;
+      const dx=Math.min(0, curX-startX);
+      el.style.transform=`translateX(${dx}px)`;
+      if(bg) bg.style.opacity=Math.min(1, -dx/THRESHOLD);
+    }
+    function onEnd(){
+      if(!dragging) return;
+      dragging=false;
+      const dx=curX-startX;
+      el.style.transition='transform .2s ease';
+      if(dx < -THRESHOLD){
+        // snap out and delete
+        el.style.transform='translateX(-110%)';
+        el.style.opacity='0';
+        setTimeout(()=>{ cart.splice(ci,1); delete expandedCart[ci];
+          // re-index expandedCart
+          const newExp={};
+          Object.keys(expandedCart).forEach(k=>{ const n=parseInt(k); if(n>ci) newExp[n-1]=expandedCart[k]; else if(n<ci) newExp[n]=expandedCart[k]; });
+          expandedCart=newExp;
+          renderCart(); bindSwipe();
+        }, 200);
+      } else {
+        el.style.transform='translateX(0)';
+        if(bg) bg.style.opacity='0';
+      }
+    }
+
+    // Touch
+    el.addEventListener('touchstart', e=>{ onStart(e.touches[0].clientX); },{passive:true});
+    el.addEventListener('touchmove',  e=>{ onMove(e.touches[0].clientX); },{passive:true});
+    el.addEventListener('touchend',   ()=>onEnd());
+
+    // Mouse (desktop)
+    el.addEventListener('mousedown', e=>{ if(e.button!==0) return; onStart(e.clientX);
+      const mm=e2=>onMove(e2.clientX);
+      const mu=()=>{ onEnd(); document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu); };
+      document.addEventListener('mousemove',mm);
+      document.addEventListener('mouseup',mu);
+    });
+  });
+}
+
+function init(){
+  tick(); setInterval(tick,20000);
+  buildCats(); buildMenu(); renderCart(); renderPending();
+  updateRptFilterButtons();
+  renderShiftGate();
+}
+function tick(){
+  document.getElementById('top-time').textContent=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('top-biz').textContent='營業日：'+dispDate(bizDay);
+  const bn=document.getElementById('brand-name');
+  if(bn) bn.innerHTML=storeName+' <span style="color:var(--accent2);font-size:10px;font-weight:400;margin-left:4px;">POS</span>';
+}
+
+// ══════════════════════════════════════════════════
+// MENU
+// ══════════════════════════════════════════════════
+function allCats(){ return ['全部',...new Set(MENU.map(m=>m.cat))]; }
+function buildCats(){
+  document.getElementById('cat-tabs').innerHTML=allCats().map(c=>
+    `<button class="cat-tab${c===currentCat?' active':''}" onclick="filterCat('${c}')">${CICON[c]||'🍽️'} ${c}</button>`
+  ).join('');
+}
+function filterCat(c){ currentCat=c; buildCats(); buildMenu(); }
+function buildMenu(){
+  const active=MENU.filter(m=>m.active!==false);
+  const items=currentCat==='全部'?active:active.filter(m=>m.cat===currentCat);
+  document.getElementById('menu-grid').innerHTML=items.length
+    ?items.map(m=>`<div class="menu-card" onclick="addToCart(${m.id})">
+        <div class="menu-name" style="font-size:13px;">${m.name}</div>
+        <div class="menu-price">${fmtMoney(m.price)}</div>
+      </div>`).join('')
+    :'<div style="color:var(--muted);padding:20px;font-size:12px;">此分類尚無品項</div>';
+}
+
+// ══════════════════════════════════════════════════
+// CART — each item has rows (one row = one serial)
+// ══════════════════════════════════════════════════
+function addToCart(menuId){
+  if(!shiftOpen){ showToast('尚未開班，請先按下開班','err'); return; }
+  const m=MENU.find(x=>x.id===menuId);
+  if(!m || m.active===false){ showToast('此品項已停賣','err'); return; }
+  const ex=cart.find(c=>c.menuId===menuId);
+  if(ex){ ex.rows.push(defRow()); }
+  else{ cart.push({menuId, rows:[defRow()]}); }
+  renderCart();
+  showToast('✅ 已加入 '+m.name,'ok');
+}
+function defRow(){ return {spice:'不辣',pepper:'正常',sauce:'正常',itemDisc:0}; }
+
+function addRow(ci){
+  cart[ci].rows.push(defRow());
+  expandedCart[ci]=true;
+  renderCart();
+}
+function removeRow(ci, ri){
+  cart[ci].rows.splice(ri,1);
+  if(cart[ci].rows.length===0) cart.splice(ci,1);
+  renderCart();
+}
+
+function clearCart(){ cart=[]; expandedCart={}; renderCart(); }
+
+function totalSerials(){ return cart.reduce((s,c)=>s+c.rows.length,0); }
+function cartSub(){
+  return cart.reduce((s,c)=>{
+    const m=MENU.find(x=>x.id===c.menuId);
+    if(!m) return s;
+    return s+c.rows.reduce((rs,r)=>rs+(m.price-r.itemDisc),0);
+  },0);
+}
+
+function renderCart(){
+  const serials=totalSerials();
+  document.getElementById('cart-badge').textContent=cart.length;
+  document.getElementById('btn-checkout').disabled=!cart.length;
+  document.getElementById('cart-total').textContent='$'+cartSub();
+  document.getElementById('cart-serial-label').textContent=serials?`${serials}串`:'';
+  document.getElementById('cart-serials-info').textContent=serials?`共 ${serials} 串`:'';
+
+  const el=document.getElementById('cart-items');
+  if(!cart.length){ el.innerHTML='<div class="cart-empty"><div style="font-size:32px">🛒</div><span>尚未點選任何商品</span></div>'; return; }
+
+  el.innerHTML=cart.map((c,ci)=>{
+    const m=MENU.find(x=>x.id===c.menuId); if(!m) return '';
+    const expanded=expandedCart[ci];
+    const rowsHtml=c.rows.map((r,ri)=>{
+      const tags=[r.spice,r.pepper,r.sauce].filter(t=>t&&t!=='正常'&&t!=='不辣');
+        return `<div class="ci-row">
+        <span class="ci-row-name">${ri+1}串</span>
+        <div class="ci-row-tags">${tags.map(t=>`<span class="ci-row-tag${r.itemDisc>0&&t.startsWith('折')?' disc':''}">${t}</span>`).join('')||'<span style="font-size:9px;color:var(--muted)">預設</span>'}</div>
+        <span class="ci-row-edit" onclick="openFlavor(${ci},${ri})">✏️</span>
+        <span class="ci-row-del" onclick="removeRow(${ci},${ri})">✕</span>
+      </div>`;
+    }).join('');
+    return `<div class="cart-item-wrap" id="wrap-${ci}">
+      <div class="cart-item-del-bg" id="delbg-${ci}">🗑️</div>
+      <div class="cart-item" id="ci-${ci}" data-ci="${ci}">
+        <div class="ci-top">
+          <span class="ci-name">${m.name}</span>
+          <span class="ci-price">${fmtMoney(m.price)}</span>
+          <button class="ci-expand-btn" onclick="toggleCartExpand(${ci})">${expanded?'▲':'▼'} ${c.rows.length}串</button>
+        </div>
+        ${expanded?`<div class="ci-rows">${rowsHtml}</div>
+        <button class="ci-add-row" onclick="addRow(${ci})">＋ 新增一串</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  setTimeout(bindSwipe, 0);
+}
+
+function toggleCartExpand(ci){ expandedCart[ci]=!expandedCart[ci]; renderCart(); }
+
+// ══════════════════════════════════════════════════
+// FLAVOR MODAL
+// ══════════════════════════════════════════════════
+function openFlavor(ci, ri){
+  const c=cart[ci]; const m=MENU.find(x=>x.id===c.menuId);
+  flavorTarget={ci,ri};
+  const r=c.rows[ri];
+  flavorTemp={spice:r.spice, pepper:r.pepper, sauce:r.sauce, itemDisc:r.itemDisc};
+  document.getElementById('flavor-title').textContent=`🌶️ ${m.name} 第${ri+1}串 口味`;
+  renderFlavorBody();
+  document.getElementById('modal-flavor').classList.remove('hidden');
+}
+function renderFlavorBody(){
+  const f=flavorTemp;
+  document.getElementById('flavor-body').innerHTML=`
+    <div class="flavor-section">
+      <div class="flavor-label">🌶️ 辣度</div>
+      <div class="flavor-chips">${SPICE.map(s=>`<button class="fchip${f.spice===s?' active':''}" onclick="setFT('spice','${s}')">${s}</button>`).join('')}</div>
+    </div>
+    <div class="flavor-section">
+      <div class="flavor-label">🌶️ 胡椒</div>
+      <div class="flavor-chips">${PEPPER.map(s=>`<button class="fchip${f.pepper===s?' active':''}" onclick="setFT('pepper','${s}')">${s}</button>`).join('')}</div>
+    </div>
+    <div class="flavor-section">
+      <div class="flavor-label">🥫 醬</div>
+      <div class="flavor-chips">${SAUCE.map(s=>`<button class="fchip${f.sauce===s?' active':''}" onclick="setFT('sauce','${s}')">${s}</button>`).join('')}</div>
+    </div>
+`;
+}
+function setFT(k,v){ flavorTemp[k]=v; renderFlavorBody(); }
+function saveFlavor(){
+  const {ci,ri}=flavorTarget;
+  Object.assign(cart[ci].rows[ri], flavorTemp);
+  closeModal('modal-flavor');
+  renderCart();
+}
+
+// ══════════════════════════════════════════════════
+// CHECKOUT
+// ══════════════════════════════════════════════════
+function openCheckout(){
+  if(!cart.length) return;
+  coState={}; globalDisc=0; globalDiscPct=0; discReason=''; selActDisc=null; receivedAmt=0;
+  renderCO();
+  document.getElementById('modal-co').classList.remove('hidden');
+}
+
+function calcTotals(){
+  const sub=cart.reduce((s,c)=>{
+    const m=MENU.find(x=>x.id===c.menuId); if(!m) return s;
+    return s+c.rows.reduce((rs,r)=>rs+(m.price-r.itemDisc),0);
+  },0);
+  let actAmt=0;
+  if(selActDisc!=null){const ad=actDiscs.find(a=>a.id===selActDisc);if(ad)actAmt=ad.type==='fixed'?ad.val:Math.round(sub*ad.val/100);}
+  const manAmt=globalDisc+Math.round(sub*globalDiscPct/100);
+  const disc=actAmt+manAmt;
+  const total=Math.max(0,sub-disc);
+  return {sub,actAmt,manAmt,disc,total};
+}
+
+function renderCO(){
+  const {sub,actAmt,manAmt,disc,total}=calcTotals();
+  const change=Math.max(0,receivedAmt-total);
+  const serials=totalSerials();
+  const no=String(orderNum).padStart(3,'0');
+
+  const itemsHtml=cart.map((c,ci)=>{
+    const m=MENU.find(x=>x.id===c.menuId); if(!m) return '';
+    return c.rows.map((r,ri)=>{
+      const tags=[r.spice,r.pepper,r.sauce].filter(t=>t&&t!=='正常'&&t!=='不辣');
+            const linePrice=m.price-r.itemDisc;
+      return `<div class="co-row" onclick="openFlavor(${ci},${ri})" title="點擊調整口味">
+        <div class="co-row-left">
+          <div class="co-row-name">${m.name} 第${ri+1}串</div>
+          <div class="co-row-tags">${tags.map(t=>`<span class="co-row-tag${r.itemDisc>0&&t.startsWith('折')?' disc':''}">${t}</span>`).join('')||'<span style="font-size:9px;color:var(--muted)">預設口味</span>'}</div>
+        </div>
+        <span class="co-row-price">${fmtMoney(linePrice)}</span>
+        <span class="co-row-edit-hint">✏️</span>
+      </div>`;
+    }).join('');
+  }).join('');
+
+  const adHtml=actDiscs.length?`
+    <div style="margin-bottom:7px;">
+      <div class="chip-label">🎉 活動折扣</div>
+      <div class="chip-row">
+        <button class="chip yellow${selActDisc==null?' active':''}" onclick="sActDisc(null)">不套用</button>
+        ${actDiscs.map(a=>`<button class="chip yellow${selActDisc===a.id?' active':''}" onclick="sActDisc(${a.id})">${a.name}（${a.type==='fixed'?'-$'+a.val:a.val+'%'}）</button>`).join('')}
+      </div>
+    </div>`:'' ;
+
+  document.getElementById('co-body').innerHTML=`
+    <div class="co-info">
+      <span>訂單號：<strong style="color:var(--accent2);font-family:'DM Mono',monospace;">#${bizDay.replace(/-/g,'')}-${no}</strong></span>
+      <span class="co-serial-total">合計 ${serials} 串</span>
+    </div>
+    <div class="co-items">${itemsHtml}</div>
+    <div class="co-divider"></div>
+    <div class="co-disc-block">
+      <div class="co-disc-title">💰 折扣設定</div>
+      ${adHtml}
+      <div style="margin-bottom:6px;">
+        <div class="chip-label">手動折扣金額</div>
+        <div class="chip-row">${[0,10,20,50,100].map(d=>`<button class="chip red${globalDisc===d&&!globalDiscPct?' active':''}" onclick="sGD(${d},0)">${d?'-$'+d:'不折'}</button>`).join('')}</div>
+      </div>
+      <div style="margin-bottom:6px;">
+        <div class="chip-label">手動折扣比例</div>
+        <div class="chip-row">${[[0,'不折'],[10,'9折'],[20,'8折'],[30,'7折']].map(([p,l])=>`<button class="chip yellow${globalDiscPct===p&&!globalDisc?' active':''}" onclick="sGD(0,${p})">${l}</button>`).join('')}</div>
+      </div>
+      <select class="gdisc-reason" onchange="discReason=this.value">
+        <option value="">折扣原因（選填）</option>
+        <option value="會員折扣">會員折扣</option><option value="活動優惠">活動優惠</option>
+        <option value="服務補償">服務補償</option><option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="co-summary">
+      <div class="co-sum-row"><span>小計（${serials}串）</span><span class="val">${fmtMoney(sub)}</span></div>
+      ${actAmt?`<div class="co-sum-row"><span>活動折扣</span><span class="val neg">-${fmtMoney(actAmt)}</span></div>`:''}
+      ${manAmt?`<div class="co-sum-row"><span>手動折扣</span><span class="val neg">-${fmtMoney(manAmt)}</span></div>`:''}
+      <div class="co-sum-row total"><span>總計</span><span class="val">${fmtMoney(total)}</span></div>
+    </div>
+    <div class="pay-section">
+      <div class="pay-label">💵 收款金額</div>
+      <div class="pay-inp-row">
+        <span class="pay-prefix">$</span>
+        <input class="pay-inp" type="number" id="pay-inp" value="${receivedAmt||''}" placeholder="0"
+          oninput="receivedAmt=parseInt(this.value)||0;document.getElementById('chg').textContent='$'+Math.max(0,receivedAmt-${total})">
+      </div>
+      <div class="pay-presets">
+        ${[100,200,500,1000].map(v=>`<button class="pay-btn" onclick="sPay(${v},${total})">${fmtMoney(v)}</button>`).join('')}
+        <button class="pay-btn" onclick="sPay(${total},${total})">全額</button>
+        <button class="pay-btn" onclick="sPay(0,${total})">歸零</button>
+      </div>
+      <div class="change-row"><span class="change-label">找零</span><span class="change-val" id="chg">${fmtMoney(change)}</span></div>
+    </div>`;
+}
+
+function sGD(a,p){ globalDisc=a; globalDiscPct=p; renderCO(); }
+function sActDisc(id){ selActDisc=id; renderCO(); }
+function sPay(amt){ receivedAmt=amt; const el=document.getElementById('pay-inp');if(el)el.value=amt; renderCO(); }
+
+function confirmPay(){
+  if(!shiftOpen){ showToast('尚未開班，無法結帳','err'); return; }
+  const {sub,actAmt,manAmt,disc,total}=calcTotals();
+  if(receivedAmt<total){showToast('收款金額不足','err');return;}
+
+  // ── stock guard: block checkout if any item would go negative ──
+  const need={};
+  cart.forEach(c=>{
+    const m=MENU.find(x=>x.id===c.menuId); if(!m) return;
+    need[m.name]=(need[m.name]||0)+c.rows.length;
+  });
+  const shortages=Object.entries(need)
+    .map(([name,qty])=>({name,qty,avail:getStock(name).qty}))
+    .filter(it=>it.avail<it.qty);
+  if(shortages.length){
+    showToast('庫存不足，無法結帳：'+shortages.map(s=>`${s.name}（剩${s.avail}／需${s.qty}）`).join('、'),'err');
+    return;
+  }
+
+  const now=new Date();
+  // 每一串的「當下實際成交金額」：口味折扣先扣，再依整張訂單的折扣比例(total/sub)按比例分攤，
+  // 一旦寫入就不再變動；之後即使商品售價調整，這裡記錄的數字也不會跟著變，供報表「品項銷售統計」使用。
+  const discFactor = sub>0 ? (total/sub) : 1;
+  const order={
+    id:Date.now(), no:orderNum, bizDay, time:now.toISOString(),
+    localDate:bizDay, done:false, voided:false, voidedAt:null, voidReason:'',
+    items:cart.map(c=>{
+      const m=MENU.find(x=>x.id===c.menuId);
+      return {menuId:c.menuId,name:m.name,cat:m.cat,price:m.price,
+              rows:c.rows.map(r=>{
+                const lineBeforeGlobalDisc=m.price-(r.itemDisc||0);
+                const actualAmt=Math.round(lineBeforeGlobalDisc*discFactor*100)/100;
+                return {...r, actualAmt};
+              })};
+    }),
+    serials:totalSerials(), sub,actAmt,manAmt,disc,total,
+    reason:discReason, received:receivedAmt, change:Math.max(0,receivedAmt-total)
+  };
+  orders.push(order); LS.set('orders',orders);
+
+  // update daily sales (activity log, used for reports)
+  if(!dailySales[bizDay]) dailySales[bizDay]={};
+  cart.forEach(c=>{
+    const m=MENU.find(x=>x.id===c.menuId); if(!m) return;
+    dailySales[bizDay][m.name]=(dailySales[bizDay][m.name]||0)+c.rows.length;
+  });
+  LS.set('dailySales',dailySales);
+
+  // deduct stock via the unified ledger (sale never changes avgCost)
+  Object.entries(need).forEach(([name,qty])=>{ adjustStock(name, -qty, null); });
+
+  // add to pending
+  pending.push({...order}); LS.set('pending',pending);
+
+  orderNum++; LS.set('ordernum',orderNum);
+  closeModal('modal-co'); cart=[]; expandedCart={}; renderCart(); renderPending();
+  if(document.getElementById('view-report').classList.contains('active')) renderReport();
+  showToast('✅ 結帳成功！找零 '+fmtMoney(order.change),'ok');
+}
+
+// ══════════════════════════════════════════════════
+// PENDING ORDERS
+// ══════════════════════════════════════════════════
+function renderPending(){
+  // save current checkbox states before re-render
+  document.querySelectorAll('[id^="chk_"]').forEach(cb=>{
+    pendingChecked[cb.id]=cb.checked;
+  });
+  const el=document.getElementById('pending-list');
+  const badge=document.getElementById('pending-badge');
+  badge.textContent=pending.length;
+  if(!pending.length){
+    el.innerHTML='<div class="pending-empty"><div style="font-size:28px">✅</div><span>目前無未完成單</span></div>';
+    return;
+  }
+  // save which panels are open
+  const openPanels=new Set([...document.querySelectorAll('.pend-body.open')].map(el=>el.id));
+  el.innerHTML=pending.map(o=>{
+    const key='p'+o.id;
+    const itemRows=o.items.map(it=>
+      it.rows.map((r,ri)=>{
+        const tags=[r.spice,r.pepper,r.sauce].filter(t=>t&&t!=='正常'&&t!=='不辣');
+        const rowKey=`chk_${o.id}_${it.name.replace(/\s/g,'')}_${ri}`;
+        return `<div class="pend-item-row" style="gap:8px;">
+          <input type="checkbox" id="${rowKey}" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0;">
+          <label for="${rowKey}" style="flex:1;cursor:pointer;">${it.name} 第${ri+1}串${tags.length?`<span class="pend-item-tags">${tags.join(' ')}</span>`:''}</label>
+          <span>${fmtMoney(it.price-r.itemDisc)}</span>
+        </div>`;
+      }).join('')
+    ).join('');
+    return `<div class="pend-card">
+      <div class="pend-head" onclick="togPend('${key}')">
+        <span class="pend-no">#${String(o.no).padStart(3,'0')}</span>
+        <span style="font-size:10px;color:var(--muted);">${fmtT(o.time)}</span>
+        <span class="pend-total">${fmtMoney(o.total)}</span>
+        <span class="pend-arrow" id="pa-${key}">▼</span>
+      </div>
+      <div class="pend-body" id="${key}">
+        <div class="pend-body-inner">
+          ${itemRows}
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;">共 ${o.serials} 串</div>
+          <button class="btn-done" onclick="markDone(${o.id})">✅ 已完成出餐</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  // restore checkbox states and open/closed panels
+  document.querySelectorAll('[id^="chk_"]').forEach(cb=>{
+    if(pendingChecked[cb.id]) cb.checked=true;
+  });
+  openPanels.forEach(id=>{
+    const body=document.getElementById(id);
+    const arrow=document.getElementById('pa-'+id);
+    if(body){ body.classList.add('open'); }
+    if(arrow){ arrow.classList.add('open'); }
+  });
+}
+
+function togPend(key){
+  const b=document.getElementById(key);
+  const a=document.getElementById('pa-'+key);
+  b.classList.toggle('open'); a.classList.toggle('open');
+}
+
+function markDone(id){
+  // clear checkbox state for this order
+  Object.keys(pendingChecked).forEach(k=>{ if(k.startsWith('chk_'+id+'_')) delete pendingChecked[k]; });
+  pending=pending.filter(o=>o.id!==id);
+  LS.set('pending',pending);
+  renderPending();
+  showToast('✅ 訂單已完成','ok');
+}
+
+// ══════════════════════════════════════════════════
+// REPORT
+// ══════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════
+// DATE FILTER (今日｜本週｜本月｜自訂日期)
+// ══════════════════════════════════════════════════
+function setRptFilter(mode){
+  rptFilterMode=mode;
+  const customEl=document.getElementById('rpt-custom-date');
+  if(mode==='custom'){
+    if(customEl){ customEl.style.display='inline-block'; if(!customEl.value) customEl.value=todayStr(); rptCustomDate=customEl.value; }
+  } else if(customEl){ customEl.style.display='none'; }
+  updateRptFilterButtons();
+  renderReport();
+}
+function onRptCustomDateChange(){
+  rptCustomDate=document.getElementById('rpt-custom-date')?.value||todayStr();
+  renderReport();
+}
+function updateRptFilterButtons(){
+  ['today','week','month','custom'].forEach(m=>{
+    const btn=document.getElementById('rpt-f-'+m);
+    if(btn) btn.classList.toggle('active', rptFilterMode===m);
+  });
+}
+
+// ══════════════════════════════════════════════════
+// DAY STATS — single source of truth for "一天的統計"
+// dayKey === '__today__' 代表「目前營業中、尚未關帳的這一天」(bizDay)，
+// 其他值代表某個已關帳日的 bizDay 字串。報表頁上方 KPI 卡片與下方的
+// 交易明細，一律呼叫這支函式取得同一份數字，不得各自重新計算。
+// ══════════════════════════════════════════════════
+function getDayStats(dayKey){
+  orders=LS.get('orders')||[];
+  closedDays=LS.get('closedDays')||[];
+  dailySales=LS.get('dailySales')||{};
+  bizDay=LS.get('bizday')||bizDay;
+
+  if(dayKey==='__today__'){
+    const fil=[...orders];
+    const valid=fil.filter(o=>!o.voided);
+    const salesMap={};
+    Object.entries(dailySales[bizDay]||{}).forEach(([name,qty])=>{ salesMap[name]=(salesMap[name]||0)+qty; });
+    return {
+      dayKey, bizDay, orders:fil,
+      revenue: valid.reduce((s,o)=>s+o.total,0),
+      disc:    valid.reduce((s,o)=>s+(o.disc||0),0),
+      serials: valid.reduce((s,o)=>s+(o.serials||0),0),
+      count:   valid.length,
+      salesMap
+    };
+  }
+  const snap=closedDays.find(d=>d.bizDay===dayKey);
+  if(!snap) return {dayKey, orders:[], revenue:0, disc:0, serials:0, count:0, salesMap:{}};
+  const salesMap={};
+  Object.entries(snap.dailySales||{}).forEach(([name,qty])=>{ salesMap[name]=(salesMap[name]||0)+qty; });
+  return { dayKey, orders:snap.orders||[], revenue:snap.revenue||0, disc:snap.disc||0, serials:snap.serials||0, count:snap.count||0, salesMap };
+}
+
+// 週範圍（日～六）／月範圍：回傳 {start,end} 的 YYYY-MM-DD 字串，供「本週」「本月」篩選使用
+function getWeekRange(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  const day=d.getDay();
+  const start=new Date(d); start.setDate(d.getDate()-day);
+  const end=new Date(start); end.setDate(start.getDate()+6);
+  const fmt=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  return {start:fmt(start), end:fmt(end)};
+}
+function getMonthRange(dateStr){
+  const [y,mo]=dateStr.slice(0,7).split('-').map(Number);
+  const lastDay=new Date(y,mo,0).getDate();
+  return {start:`${dateStr.slice(0,7)}-01`, end:`${dateStr.slice(0,7)}-${String(lastDay).padStart(2,'0')}`};
+}
+
+// 多天彙總統計（本週／本月／任意日期區間）——內部一律重用 getDayStats('__today__')
+// 取得目前營業中那天的資料，避免跟其他地方各自重算一次。
+function getRangeStats(startStr, endStr){
+  closedDays=LS.get('closedDays')||[];
+  bizDay=LS.get('bizday')||bizDay;
+  const inRange=d=> d>=startStr && d<=endStr;
+  let revenue=0, disc=0, serials=0, count=0; const salesMap={}; let orders=[];
+  closedDays.forEach(d=>{
+    if(d.bizDay && inRange(d.bizDay)){
+      revenue+=d.revenue||0; disc+=d.disc||0; serials+=d.serials||0; count+=d.count||0;
+      Object.entries(d.dailySales||{}).forEach(([n,q])=>{ salesMap[n]=(salesMap[n]||0)+q; });
+      orders=orders.concat(d.orders||[]);
+    }
+  });
+  if(bizDay && inRange(bizDay)){
+    const t=getDayStats('__today__');
+    revenue+=t.revenue; disc+=t.disc; serials+=t.serials; count+=t.count;
+    Object.entries(t.salesMap).forEach(([n,q])=>{ salesMap[n]=(salesMap[n]||0)+q; });
+    orders=orders.concat(t.orders);
+  }
+  return {startStr, endStr, orders, revenue, disc, serials, count, salesMap};
+}
+
+// ══════════════════════════════════════════════════
+// REPORT TOP KPIs（今日／本月／低庫存總覽）
+// ══════════════════════════════════════════════════
+// 報表頁 KPI 卡片（僅用於報表頁，不影響庫存頁／月結頁沿用的 .rpt-card）
+function kpiCard(icon,label,val,hero){
+  return `<div class="kpi-card"><div class="kpi-card-top"><div class="kpi-card-icon${hero?' hero':''}">${icon}</div><div class="kpi-card-label">${label}</div></div><div class="kpi-card-val">${val}</div></div>`;
+}
+const RPT_DOT_PALETTE=['#E0935B','#9BC53D','#5DADE2','#8E7CC3','#E06C9F','#4FBDBA','#A9744F','#D9B44A'];
+
+// v40 修正：品項銷售統計金額，一律以「訂單成立當下的實際成交金額」計算，不使用目前售價估算。
+// - v40 起新訂單：每一串在結帳當下就已寫入 row.actualAmt（已包含口味折扣＋整張訂單折扣比例分攤），直接加總即可，往後調整售價也不會回頭改變這個數字。
+// - v40 之前的舊訂單：沒有 actualAmt 欄位，退回用「該筆訂單自己記錄的 price／itemDisc／sub／total」按比例回推，
+//   一樣是用訂單當時存的售價（不是目前售價），所以調整售價也不會影響這裡的歷史數字。
+// 已作廢訂單不計入。
+function getItemActualAmtMap(orders){
+  const map={};
+  (orders||[]).forEach(o=>{
+    if(o.voided) return;
+    const sub = (typeof o.sub==='number') ? o.sub
+      : o.items.reduce((s,it)=>s+it.rows.reduce((rs,r)=>rs+(it.price-(r.itemDisc||0)),0),0);
+    const factor = (sub>0 && typeof o.total==='number') ? (o.total/sub) : 1;
+    o.items.forEach(it=>{
+      if(!map[it.name]) map[it.name]=0;
+      it.rows.forEach(r=>{
+        const amt = (typeof r.actualAmt==='number')
+          ? r.actualAmt
+          : (it.price-(r.itemDisc||0))*factor;
+        map[it.name]+=amt;
+      });
+    });
+  });
+  return map;
+}
+
+function renderReportTopKPIs(){
+  // 本月進貨金額：一律用「目前尚未月結的月份」，月結完成後自動歸零重新累計
+  const mt=computePeriodTotals(getCurrentPeriodStart(), todayStr());
+
+  // 低庫存提醒：以各品項自訂的「最低庫存」為準（未設定則不提醒），庫存來自統一庫存帳本
+  MENU=LS.get('menu')||MENU;
+  const lowItems=MENU
+    .filter(m=>m.active!==false && (m.minStock||0)>0)
+    .map(m=>({name:m.name, remaining:getStock(m.name).qty, minStock:m.minStock}))
+    .filter(it=>it.remaining<=it.minStock)
+    .sort((a,b)=>a.remaining-b.remaining);
+
+  const el=document.getElementById('rpt-top-kpis');
+  if(!el) return;
+  el.innerHTML=`
+    <div class="rpt-mini-overview">
+      <span>📦 本月進貨金額：<b>${fmtMoney(mt.inAmt)}</b></span>
+      <span>🔔 低庫存提醒：<b class="${lowItems.length?'warn':''}">${lowItems.length?lowItems.length+' 項':'✓ 正常'}</b></span>
+    </div>`;
+}
+
+function renderReport(){
+  renderReportTopKPIs();
+  closedDays = LS.get('closedDays') || [];
+  bizDay     = LS.get('bizday')     || bizDay; // never auto-advance from system date
+  updateRptFilterButtons();
+
+  const today=todayStr();
+  let stat, rangeLabel;
+  if(rptFilterMode==='week'){
+    const wk=getWeekRange(today);
+    stat=getRangeStats(wk.start, wk.end);
+    rangeLabel=`本週（${dispDate(wk.start)}～${dispDate(wk.end)}）`;
+  } else if(rptFilterMode==='month'){
+    const mo=getMonthRange(today);
+    stat=getRangeStats(mo.start, mo.end);
+    rangeLabel=`本月（${dispDate(mo.start)}～${dispDate(mo.end)}）`;
+  } else if(rptFilterMode==='custom'){
+    const d=rptCustomDate||document.getElementById('rpt-custom-date')?.value||today;
+    stat=(d===bizDay)?getDayStats('__today__'):getDayStats(d);
+    rangeLabel=dispDate(d);
+  } else {
+    stat=getDayStats('__today__');
+    rangeLabel='今日（'+dispDate(bizDay)+'）';
+  }
+  const labelEl=document.getElementById('rpt-filter-label');
+  if(labelEl) labelEl.textContent=rangeLabel;
+
+  const fil=stat.orders, salesMap=stat.salesMap;
+  const revenue=stat.revenue, disc=stat.disc, serials=stat.serials, count=stat.count;
+
+  const salesArr = Object.entries(salesMap).map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty);
+
+  // 本月營業額：沿用 renderReportTopKPIs 同一套 computePeriodTotals()，不重新定義一套算法
+  const mt=computePeriodTotals(getCurrentPeriodStart(), todayStr());
+
+  // 品項銷售金額（v40 修正）：一律使用「訂單成立當下的實際成交金額」，不使用目前售價估算，
+  // 售價異動後歷史報表數字不會改變。新訂單(v40起)直接讀取結帳時凍結的 row.actualAmt；
+  // v40 之前的舊訂單沒有這個欄位，才 fallback 用該筆訂單自己記錄的 price/itemDisc/sub/total
+  // 按比例回推（仍然是「當時」的售價與折扣，不是目前售價，一樣不會因調價而變動）。
+  const salesAmtMap = getItemActualAmtMap(fil);
+  const salesTotalAmt = salesArr.reduce((s,it)=>s+(salesAmtMap[it.name]||0),0);
+
+  const salesRowsHtml = salesArr.map((it,i)=>`
+    <tr>
+      <td><span class="rpt-dot" style="background:${RPT_DOT_PALETTE[i%RPT_DOT_PALETTE.length]}"></span>${it.name}</td>
+      <td>${it.qty} 串</td>
+      <td>${fmtMoney(salesAmtMap[it.name]||0)}</td>
+    </tr>`).join('');
+
+  const ordersHtml = fil.length ? [...fil].reverse().map(o=>{
+    const key='o'+o.id;
+    const voidable = !o.voided && o.bizDay===bizDay; // 只有目前這一班（尚未關帳）的訂單可以作廢
+    const itemCount = o.items.reduce((s,it)=>s+it.rows.length,0);
+    const detail=o.items.map(it=>
+      it.rows.map((r,ri)=>{
+        const tags=[r.spice,r.pepper,r.sauce].filter(t=>t&&t!=='正常'&&t!=='不辣');
+        return `<div class="od-row"><span>${it.name}第${ri+1}串${tags.length?`<span class="od-tags">${tags.join(' ')}</span>`:''}</span><span>${fmtMoney(it.price-r.itemDisc)}</span></div>`;
+      }).join('')
+    ).join('');
+    return `<tr class="rpt-ord-row"${o.voided?' style="opacity:.55;"':''} onclick="togOrd('${key}')">
+        <td style="font-family:'DM Mono',monospace;">${fmtT(o.time)}</td>
+        <td style="font-family:'DM Mono',monospace;color:var(--accent2);font-weight:700;">#${String(o.no).padStart(3,'0')}${o.voided?' <span style="color:var(--red);font-size:10px;">（已作廢）</span>':''}</td>
+        <td>${itemCount} 項</td>
+        <td style="font-family:'DM Mono',monospace;font-weight:700;color:var(--brand);">${fmtMoney(o.total)}</td>
+        <td style="white-space:nowrap;" onclick="event.stopPropagation();">
+          <button class="set-del" onclick="togOrd('${key}')">查看</button>
+          ${voidable?`<button class="set-del" style="color:var(--red);border-color:var(--red);" onclick="voidOrder(${o.id})">作廢</button>`:''}
+        </td>
+      </tr>
+      <tr id="${key}" style="display:none;">
+        <td colspan="5" class="rpt-ord-detail-cell">
+          ${detail}
+          ${o.disc?`<div class="od-row"><span style="color:var(--red)">折扣${o.reason?'（'+o.reason+'）':''}</span><span style="color:var(--red)">-${fmtMoney(o.disc)}</span></div>`:''}
+          <div class="od-row" style="font-weight:700;color:var(--accent);"><span>實收（${o.serials}串）</span><span>${fmtMoney(o.total)}</span></div>
+          ${o.voided?`<div class="od-row" style="color:var(--red);font-size:11px;"><span>作廢原因</span><span>${o.voidReason||'—'}</span></div>`:''}
+        </td>
+      </tr>`;
+  }).join('') : '<tr><td colspan="5" class="no-data">此範圍內無訂單記錄</td></tr>';
+
+  document.getElementById('rpt-content').innerHTML=`
+    <div class="kpi-cards">
+      ${kpiCard('💳','營業額',fmtMoney(revenue))}
+      ${kpiCard('🧾','訂單數',count+' 筆')}
+      ${kpiCard('🏷️','折扣金額',fmtMoney(disc))}
+      ${kpiCard('👥','客單價',fmtMoney(count?Math.round(revenue/count):0))}
+      ${kpiCard('💰','月營業額',fmtMoney(mt.soldAmt),true)}
+    </div>
+    <div class="rpt-two-col">
+      <div class="rpt-section">
+        <div class="rpt-sec-title">📊 品項銷售統計</div>
+        ${salesArr.length?`
+        <table class="rpt-item-table">
+          <thead><tr><th>品項名稱</th><th>銷售數量</th><th>銷售金額</th></tr></thead>
+          <tbody>${salesRowsHtml}</tbody>
+          <tfoot><tr><td>總計</td><td>${serials} 串</td><td>${fmtMoney(salesTotalAmt)}</td></tr></tfoot>
+        </table>`:'<div class="no-data">無銷售資料</div>'}
+      </div>
+      <div class="rpt-section">
+        <div class="rpt-sec-title">📋 交易明細 <button class="btn-export" onclick="exportPDF()">📄 匯出 PDF</button></div>
+        <div class="rpt-orders-scroll">
+          <table class="rpt-ord-table">
+            <thead><tr><th>時間</th><th>訂單編號</th><th>品項數</th><th>金額</th><th>操作</th></tr></thead>
+            <tbody>${ordersHtml}</tbody>
+            ${fil.length?`<tfoot><tr><td colspan="2">總計</td><td>${count} 筆</td><td>${fmtMoney(revenue)}</td><td></td></tr></tfoot>`:''}
+          </table>
+        </div>
+      </div>
+    </div>`;
+}
+
+function togOrd(key){
+  const el=document.getElementById(key);
+  if(!el) return;
+  const open = el.style.display!=='none';
+  el.style.display = open?'none':'table-row';
+}
+
+function voidOrder(id){
+  orders=LS.get('orders')||[];
+  const o=orders.find(x=>x.id===id);
+  if(!o){ showToast('找不到此筆訂單','err'); return; }
+  if(o.voided){ showToast('此筆訂單已經作廢','err'); return; }
+  const reason=prompt('請輸入作廢原因（將保留於紀錄中，供日後查帳）：','');
+  if(reason===null) return;
+  if(!reason.trim()){ showToast('請填寫作廢原因','err'); return; }
+
+  showConfirm('確認作廢訂單',
+    `#${String(o.no).padStart(3,'0')}　${fmtMoney(o.total)}\n作廢原因：${reason.trim()}\n\n作廢後營業額將自動扣除、庫存會回補，但訂單紀錄會保留供查帳，此動作無法復原。確定要作廢嗎？`,
+    ()=>{
+      // restore stock via the unified ledger (does not touch avgCost)
+      o.items.forEach(it=>{ adjustStock(it.name, it.rows.length, null); });
+
+      // reverse from daily sales activity log
+      if(dailySales[o.bizDay]){
+        o.items.forEach(it=>{
+          if(dailySales[o.bizDay][it.name]){
+            dailySales[o.bizDay][it.name]-=it.rows.length;
+            if(dailySales[o.bizDay][it.name]<=0) delete dailySales[o.bizDay][it.name];
+          }
+        });
+        LS.set('dailySales',dailySales);
+      }
+
+      o.voided=true; o.voidedAt=new Date().toISOString(); o.voidReason=reason.trim();
+      LS.set('orders',orders);
+      pending=pending.filter(p=>p.id!==id); LS.set('pending',pending);
+
+      renderReport(); renderPending();
+      showToast('🚫 訂單已作廢，庫存已回補','err');
+    });
+}
+
+// ══════════════════════════════════════════════════
+// EXPORT PDF
+// ══════════════════════════════════════════════════
+function exportPDF(){
+  closedDays=LS.get('closedDays')||[];
+  bizDay=LS.get('bizday')||bizDay;
+  const today=todayStr();
+  let stat, label, rangeLabel;
+
+  if(rptFilterMode==='week'){
+    const wk=getWeekRange(today);
+    stat=getRangeStats(wk.start, wk.end);
+    label=`${wk.start}_至_${wk.end}`;
+    rangeLabel=`本週（${dispDate(wk.start)}～${dispDate(wk.end)}）`;
+  } else if(rptFilterMode==='month'){
+    const mo=getMonthRange(today);
+    stat=getRangeStats(mo.start, mo.end);
+    label=`${mo.start.slice(0,7)}`;
+    rangeLabel=`本月（${dispDate(mo.start)}～${dispDate(mo.end)}）`;
+  } else if(rptFilterMode==='custom'){
+    const d=rptCustomDate||document.getElementById('rpt-custom-date')?.value||today;
+    stat=(d===bizDay)?getDayStats('__today__'):getDayStats(d);
+    label=d;
+    rangeLabel=dispDate(d);
+  } else {
+    stat=getDayStats('__today__');
+    label=bizDay||today;
+    rangeLabel='今日（'+dispDate(bizDay)+'）';
+  }
+
+  const fil=stat.orders, revenue=stat.revenue, disc=stat.disc, serials=stat.serials, count=stat.count, salesMap=stat.salesMap;
+
+  const avg=count?Math.round(revenue/count):0;
+  const salesArr=Object.entries(salesMap).map(([n,q])=>({n,q})).sort((a,b)=>b.q-a.q);
+  const maxQ=salesArr[0]?.q||1;
+
+  const salesRows=salesArr.map(it=>{
+    const pct=Math.round(it.q/maxQ*100);
+    return `<tr>
+      <td style="padding:7px 8px;border-bottom:1px solid #DDD6CF;">${it.n}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid #DDD6CF;width:200px;">
+        <div style="background:#eee;border-radius:4px;height:10px;">
+          <div style="background:#B08968;width:${pct}%;height:10px;border-radius:4px;"></div>
+        </div>
+      </td>
+      <td style="padding:7px 8px;border-bottom:1px solid #DDD6CF;text-align:right;font-family:monospace;">${it.q} 串</td>
+    </tr>`;
+  }).join('');
+
+  // full itemised transaction list — this was previously missing entirely,
+  // which is why "交易明細 PDF" looked incomplete even when it opened fine.
+  const ordersRows=[...fil].reverse().map(o=>{
+    const lines=o.items.map(it=>
+      it.rows.map((r,ri)=>{
+        const tags=[r.spice,r.pepper,r.sauce].filter(t=>t&&t!=='正常'&&t!=='不辣');
+        return `${it.name}第${ri+1}串${tags.length?'（'+tags.join(' ')+'）':''} … ${fmtMoney(it.price-r.itemDisc)}`;
+      }).join('<br>')
+    ).join('<br>');
+    return `<tr${o.voided?' style="opacity:.55;"':''}>
+      <td style="padding:8px;border-bottom:1px solid #DDD6CF;font-family:monospace;">#${String(o.no).padStart(3,'0')}${o.voided?'<br><span style="color:#C94C4C;font-size:10px;">已作廢</span>':''}</td>
+      <td style="padding:8px;border-bottom:1px solid #DDD6CF;font-family:monospace;">${dispDate(o.time)}<br>${fmtT(o.time)}</td>
+      <td style="padding:8px;border-bottom:1px solid #DDD6CF;font-size:12px;">${lines}${o.disc?`<br><span style="color:#C94C4C;">折扣${o.reason?'（'+o.reason+'）':''} -${fmtMoney(o.disc)}</span>`:''}${o.voided?`<br><span style="color:#C94C4C;font-size:11px;">作廢原因：${o.voidReason||'—'}</span>`:''}</td>
+      <td style="padding:8px;border-bottom:1px solid #DDD6CF;text-align:right;font-family:monospace;font-weight:700;">${fmtMoney(o.total)}</td>
+    </tr>`;
+  }).join('');
+
+  const printTime=dispDate(new Date().toISOString())+' '+new Date().toLocaleTimeString('zh-TW');
+  const html=`<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
+<title>${storeName} ${rangeLabel}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#2F2F2F;padding:32px;max-width:680px;margin:0 auto;font-size:14px;background:#F7F5F2;}
+  h1{font-size:24px;font-weight:900;color:#6B4F3A;margin-bottom:2px;}
+  .sub{font-size:12px;color:#666666;margin-bottom:24px;}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;}
+  .card{background:#fff;border:1.5px solid #DDD6CF;border-radius:12px;padding:14px 16px;}
+  .card-label{font-size:10px;color:#666666;letter-spacing:.03em;margin-bottom:6px;font-weight:700;}
+  .card-val{font-size:24px;font-weight:700;font-family:monospace;line-height:1;}
+  .green{color:#4E7D5A;} .orange{color:#8B6F4E;} .red{color:#C94C4C;}
+  h2{font-size:14px;font-weight:700;color:#6B4F3A;margin:24px 0 12px;border-bottom:2px solid #B08968;padding-bottom:6px;}
+  table{width:100%;border-collapse:collapse;background:#fff;}
+  .footer{margin-top:32px;font-size:11px;color:#999;text-align:center;border-top:1px solid #DDD6CF;padding-top:12px;}
+  @media print{@page{margin:16mm;} body{padding:0;background:#fff;} h2{page-break-after:avoid;} tr{page-break-inside:avoid;}}
+</style></head><body>
+<h1>${storeName}</h1>
+<div class="sub">${rangeLabel}　　列印時間：${printTime}</div>
+<div class="cards">
+  <div class="card"><div class="card-label">營業額</div><div class="card-val green">${fmtMoney(revenue)}</div></div>
+  <div class="card"><div class="card-label">訂單數</div><div class="card-val orange">${count}</div></div>
+  <div class="card"><div class="card-label">總串數</div><div class="card-val orange">${serials}</div></div>
+  <div class="card"><div class="card-label">總折扣</div><div class="card-val red">${fmtMoney(disc)}</div></div>
+  <div class="card"><div class="card-label">客單價</div><div class="card-val orange">${fmtMoney(avg)}</div></div>
+</div>
+<h2>📊 品項銷售統計</h2>
+${salesArr.length?`<table>${salesRows}</table>`:'<p style="color:#aaa;font-size:13px;">無銷售資料</p>'}
+<h2>📋 交易明細（共 ${fil.length} 筆，含已作廢）</h2>
+${fil.length?`<table>
+  <thead><tr>
+    <th style="padding:8px;text-align:left;border-bottom:2px solid #333;font-size:11px;">單號</th>
+    <th style="padding:8px;text-align:left;border-bottom:2px solid #333;font-size:11px;">時間</th>
+    <th style="padding:8px;text-align:left;border-bottom:2px solid #333;font-size:11px;">品項明細</th>
+    <th style="padding:8px;text-align:right;border-bottom:2px solid #333;font-size:11px;">金額</th>
+  </tr></thead>
+  <tbody>${ordersRows}</tbody>
+</table>`:'<p style="color:#aaa;font-size:13px;">此營業日無訂單記錄</p>'}
+<div class="footer">店小二 POS 系統（${APP_VERSION}）　自動產生</div>
+</body></html>`;
+
+  // open a real new window/tab synchronously (within the click handler) so
+  // Safari / iOS and popup blockers don't block it, then write + print.
+  const printWin=window.open('','_blank');
+  if(!printWin){
+    // popup blocked — fall back to downloading the report as an HTML file
+    // the user can open and print/save as PDF themselves.
+    const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`${storeName}_${label}.html`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    showToast('瀏覽器封鎖了彈出視窗，已改為下載報表檔案','err');
+    return;
+  }
+  printWin.document.open();
+  printWin.document.write(html);
+  printWin.document.close();
+  printWin.focus();
+  // give the new window a moment to lay out fonts/content before printing
+  setTimeout(()=>{ try{ printWin.print(); }catch(e){} },350);
+  showToast('📄 開啟列印視窗…','ok');
+}
+
+
+// ══════════════════════════════════════════════════
+// CLOSE DAY
+// ══════════════════════════════════════════════════
+function doCloseDay(){
+  if(!shiftOpen){ showToast('尚未開班，沒有需要關帳的營業資料','err'); return; }
+  showConfirm('確認關帳',
+    `即將結束「${dispDate(bizDay)}」這一班。\n\n• 當日訂單結算並封存\n• 報表可按天查詢歷史\n• 結束後點餐畫面會顯示「尚未開班」，需要再按「開班」才能繼續點餐、建立訂單、結帳\n• 下次開班的營業日會自動設定為當天裝置日期（不會依休息天數逐日遞增）`,()=>{
+    // snapshot current day (voided orders stay in the archive for audit but don't count toward totals)
+    orders=LS.get('orders')||[];
+    dailySales=LS.get('dailySales')||{};
+    const validOrders=orders.filter(o=>!o.voided);
+    const snap={
+      bizDay,
+      orders:[...orders],
+      dailySales:{...(dailySales[bizDay]||{})},
+      revenue:validOrders.reduce((s,o)=>s+o.total,0),
+      disc:validOrders.reduce((s,o)=>s+(o.disc||0),0),
+      serials:validOrders.reduce((s,o)=>s+(o.serials||0),0),
+      count:validOrders.length
+    };
+    closedDays=LS.get('closedDays')||[];
+    // replace if same bizDay already exists
+    closedDays=closedDays.filter(d=>d.bizDay!==bizDay);
+    closedDays.push(snap);
+    LS.set('closedDays',closedDays);
+    // clear current session
+    orders=[]; LS.set('orders',[]);
+    const ds=LS.get('dailySales')||{};
+    delete ds[bizDay]; LS.set('dailySales',ds);
+    dailySales=ds;
+    orderNum=1; LS.set('ordernum',orderNum);
+    // 關帳只結束這一班，不主動改變營業日——營業日只由「開班」決定，
+    // 這樣才不會在休息數天後，重開時把中間沒營業的日子也算進去。
+    shiftOpen=false; LS.set('shiftOpen',false);
+    tick();
+    renderCart(); renderPending(); renderShiftGate();
+    showToast('✅ 關帳完成，已封存 '+dispDate(snap.bizDay)+'，下次開班前無法點餐','ok');
+  });
+}
+
+// ══════════════════════════════════════════════════
+// SHIFT (開班／關帳)
+// ══════════════════════════════════════════════════
+function renderShiftGate(){
+  const gate=document.getElementById('shift-gate');
+  if(!gate) return;
+  gate.style.display = shiftOpen ? 'none' : 'flex';
+}
+
+function startShift(){
+  const today=todayStr();
+  showConfirm('確認開班',
+    `即將開班，營業日設定為 ${dispDate(today)}。\n\n開班期間即使跨過午夜，營業日仍維持這一天，直到您按下關帳為止；所有交易都算在同一個營業日。確定要開班嗎？`,
+    ()=>{
+      bizDay=today; LS.set('bizday',bizDay);
+      shiftOpen=true; LS.set('shiftOpen',true);
+      if(!firstShiftDate){ firstShiftDate=today; LS.set('firstShiftDate',firstShiftDate); } // 第一個營業期間的起始日，只記錄一次
+      tick();
+      renderShiftGate();
+      buildMenu();
+      showToast('🚀 已開班，營業日：'+dispDate(bizDay),'ok');
+    });
+}
+
+// ══════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════
+function openNewCatModal(cb){
+  let m=document.getElementById('modal-newcat');
+  if(!m){
+    m=document.createElement('div');
+    m.id='modal-newcat'; m.className='modal-bg hidden';
+    m.innerHTML=`<div class="modal" style="max-width:340px;">
+      <div class="modal-head"><span class="modal-title">➕ 新增分類</span>
+        <button class="modal-close" onclick="document.getElementById('modal-newcat').classList.add('hidden')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="fg"><label class="fl">分類名稱</label>
+          <input class="fi" id="newcat-inp" placeholder="例：海鮮、甜點…" style="margin-top:4px;">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="tbtn" style="flex:1" onclick="document.getElementById('modal-newcat').classList.add('hidden')">取消</button>
+        <button class="btn-add-form" style="flex:1" id="newcat-ok">確定新增</button>
+      </div>
+    </div>`;
+    document.body.appendChild(m);
+  }
+  document.getElementById('newcat-inp').value='';
+  m.classList.remove('hidden');
+  setTimeout(()=>document.getElementById('newcat-inp').focus(),100);
+  document.getElementById('newcat-ok').onclick=()=>{
+    const v=document.getElementById('newcat-inp').value.trim();
+    m.classList.add('hidden');
+    cb(v);
+  };
+}
+
+function saveStoreName(){
+  const v=document.getElementById('store-name-inp').value.trim();
+  if(!v){ showToast('請輸入店家名稱','err'); return; }
+  storeName=v; LS.set('storeName',storeName);
+  tick(); showToast('✅ 店家名稱已更新','ok');
+}
+
+function setSettingsView(view){
+  ['hub','menu','discount','store'].forEach(v=>{
+    const el=document.getElementById('settings-'+v);
+    if(el) el.style.display = (v===view) ? '' : 'none';
+  });
+  if(view!=='hub') renderSettings();
+}
+
+function renderSettings(){
+  storeName=LS.get('storeName')||'夯肉 HANGROU';
+  const sni=document.getElementById('store-name-inp'); if(sni) sni.value=storeName;
+  categories=LS.get('categories')||categories||[];
+  // 安全網：若有品項的 cat 不在 categories 清單裡（例如舊資料／異常資料），自動補進清單，避免消失或選不到
+  const strayCats=[...new Set(MENU.map(m=>m.cat).filter(Boolean))].filter(c=>!categories.includes(c));
+  if(strayCats.length){ categories=[...categories, ...strayCats]; LS.set('categories',categories); }
+  const sel=document.getElementById('si-cat');
+  sel.innerHTML=categories.map(c=>`<option value="${c}">${c}</option>`).join('')+'<option value="__new__">＋ 新分類</option>';
+
+  const catMgmtEl=document.getElementById('cat-mgmt-list');
+  if(catMgmtEl){
+    catMgmtEl.innerHTML = categories.length ? categories.map(c=>{
+      const itemCount = MENU.filter(m=>m.cat===c).length;
+      return `<div class="set-item">
+        <div class="set-item-info"><span class="set-item-name">${c}</span><span class="set-item-cat">（${itemCount} 項品項）</span></div>
+        <button class="set-del" onclick="deleteCategory('${c.replace(/'/g,"\\'")}')">刪除</button>
+      </div>`;
+    }).join('') : '<div class="no-data" style="padding:10px 0;">尚無類別</div>';
+  }
+
+  const menuStatusFilter=document.getElementById('menu-status-filter')?.value||'active';
+  const menuListShown = menuStatusFilter==='active' ? MENU.filter(m=>m.active!==false)
+    : menuStatusFilter==='inactive' ? MENU.filter(m=>m.active===false)
+    : MENU;
+  document.getElementById('menu-list').innerHTML=(menuListShown.length?menuListShown:[]).map(m=>`
+    <div class="set-item" style="flex-direction:column;align-items:stretch;gap:6px;${m.active===false?'opacity:.55;':''}">
+      <div style="display:flex;align-items:center;gap:7px;">
+        <input class="inv-edit-inp" value="${m.name}" style="width:160px;max-width:160px;flex:0 0 auto;"
+          onchange="editMenuItem(${m.id},'name',this.value)" onclick="this.select()">
+        <span class="set-item-cat" style="white-space:nowrap;">／${m.cat}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <label style="font-size:9px;color:var(--muted);">售價</label>
+        <input class="inv-edit-inp" type="number" value="${m.price}" style="width:60px;text-align:center;"
+          onchange="editMenuItem(${m.id},'price',this.value)" onclick="this.select()">
+        <label style="font-size:9px;color:var(--muted);">最低庫存</label>
+        <input class="inv-edit-inp" type="number" value="${m.minStock!=null?m.minStock:''}" placeholder="留空＝不提醒" style="width:76px;text-align:center;"
+          onchange="editMenuItem(${m.id},'minStock',this.value)" onclick="this.select()">
+        <button class="set-del" style="margin-left:auto;${m.active===false?'color:var(--green);border-color:var(--green);':'color:var(--red);border-color:var(--red);'}" onclick="toggleMenuActive(${m.id})">${m.active===false?'啟用':'停賣'}</button>
+        <button class="set-del" style="color:var(--red);border-color:var(--red);" onclick="deleteMenuItem(${m.id})">刪除</button>
+      </div>
+    </div>`).join('') || '<div class="no-data" style="padding:10px 0;">此篩選條件下沒有品項</div>';
+
+  document.getElementById('act-disc-list').innerHTML=actDiscs.length
+    ?actDiscs.map(a=>`
+      <div class="set-item">
+        <div class="set-item-info"><span class="set-item-name">${a.name}</span></div>
+        <span class="set-item-price" style="color:var(--red);">${a.type==='fixed'?'-'+fmtMoney(a.val):a.val+'%'}</span>
+        <button class="set-del" onclick="delActDisc(${a.id})">刪除</button>
+      </div>`).join('')
+    :'<div class="no-data" style="padding:10px 0;">尚無活動折扣</div>';
+
+  // ── Version info（僅保留：版本號／正式開始營業日／最後備份時間／資料庫狀態）──
+  const viEl=document.getElementById('version-info');
+  if(viEl){
+    const issues=validateStockHealth();
+    const bsd=LS.get('businessStartDate');
+    const lastBackupAt=LS.get('lastBackupAt');
+    viEl.innerHTML=`
+      版本號：<b style="color:var(--text);">${APP_VERSION}</b>（${APP_BUILD_DATE}）<br>
+      正式開始營業日：<b style="color:var(--text);">${bsd?dispDate(bsd):'尚未開始'}</b><br>
+      最後備份時間：<b style="color:var(--text);">${lastBackupAt?dispDate(lastBackupAt)+' '+fmtT(lastBackupAt):'尚未備份'}</b><br>
+      資料庫狀態：${issues.length?`<b style="color:var(--red);">⚠ ${issues.length} 項異常</b>`:'<b style="color:var(--green);">✅ 正常</b>'}`;
+  }
+  const bsdEl=document.getElementById('biz-start-date');
+  if(bsdEl && !bsdEl.value) bsdEl.value = LS.get('businessStartDate') || todayStr();
+  runHealthCheck(); // proactively show data-health status every time settings opens, not just on button click
+}
+
+// ══════════════════════════════════════════════════
+// BACKUP / RESTORE（資料備份與還原）
+// ══════════════════════════════════════════════════
+function backupData(){
+  const data={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k && k.startsWith('hr_')){
+      const raw=localStorage.getItem(k);
+      try{ data[k.slice(3)]=JSON.parse(raw); }catch(e){ data[k.slice(3)]=raw; }
+    }
+  }
+  const payload={ app:'store-clerk-pos', version:APP_VERSION, exportedAt:new Date().toISOString(), data };
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const d=new Date();
+  const dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const timeStr=String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
+  const a=document.createElement('a');
+  a.href=url; a.download=`店小二POS_${APP_VERSION}_${dateStr}_${timeStr}.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  LS.set('lastBackupAt', new Date().toISOString());
+  if(document.getElementById('version-info')) renderSettings();
+  showToast('✅ 備份檔案已下載','ok');
+}
+
+function handleRestoreFile(input){
+  const file=input.files && input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    let payload;
+    try{ payload=JSON.parse(e.target.result); }
+    catch(err){ showToast('這不是有效的備份檔案','err'); input.value=''; return; }
+    if(!payload || typeof payload.data!=='object'){ showToast('這不是有效的備份檔案','err'); input.value=''; return; }
+
+    showConfirm(
+      '確認還原備份',
+      '目前資料將被覆蓋，是否繼續？',
+      ()=>{
+        Object.entries(payload.data).forEach(([k,v])=>{
+          localStorage.setItem('hr_'+k, JSON.stringify(v));
+        });
+        showToast('✅ 還原完成，即將重新載入…','ok');
+        setTimeout(()=>location.reload(), 900);
+      }
+    );
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════════════
+// DATA HEALTH CHECK（資料健康檢查）
+// ══════════════════════════════════════════════════
+function runHealthCheck(){
+  const el=document.getElementById('health-check-result');
+  if(!el) return;
+  const issues=validateStockHealth();
+
+  // extra structural checks: orders referencing menu items no longer defined, orphaned pending etc.
+  MENU=LS.get('menu')||MENU;
+  orders=LS.get('orders')||[];
+  const menuNames=new Set(MENU.map(m=>m.name));
+  const orphanItems=new Set();
+  orders.forEach(o=>(o.items||[]).forEach(it=>{ if(!menuNames.has(it.name)) orphanItems.add(it.name); }));
+
+  el.innerHTML=`
+    <div class="rpt-section" style="${issues.length?'border-color:var(--red);':'border-color:var(--green);'}">
+      <div class="rpt-sec-title" style="color:${issues.length?'var(--red)':'var(--green)'};">
+        ${issues.length?`⚠️ 發現 ${issues.length} 項庫存異常`:'✅ 庫存資料正常'}
+      </div>
+      ${issues.length?`<div style="display:flex;flex-direction:column;gap:6px;">
+        ${issues.map(i=>`<div style="font-size:11px;line-height:1.6;"><b style="color:var(--red);">${i.label}</b>／${i.name}：${i.detail}</div>`).join('')}
+      </div>`:'<div style="font-size:11px;color:var(--muted);">沒有負庫存、超賣、缺成本或異常金額的品項，月結不會被擋下。</div>'}
+      ${orphanItems.size?`<div style="margin-top:8px;font-size:11px;color:var(--warn);">⚠ 交易紀錄中有 ${orphanItems.size} 個品項名稱在目前商品清單中找不到（可能已改名或曾經被移除）：${[...orphanItems].join('、')}</div>`:''}
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════
+// START REAL BUSINESS（開始正式營業／清除測試資料）
+// 只能由使用者手動點擊觸發；更新版本、還原備份、換設備都絕不會呼叫這裡。
+// ══════════════════════════════════════════════════
+function startRealBusinessStep1(){
+  const keepQty=document.getElementById('keep-stock-qty')?.checked||false;
+  const keepCost=document.getElementById('keep-avg-cost')?.checked||false;
+  const keepLines=[
+    '會保留：商品資料、商品分類、售價、最低庫存、停賣狀態、店名、系統設定。',
+    keepQty?'✔ 會保留目前庫存數量':'✘ 不保留目前庫存數量（歸零）',
+    keepCost?'✔ 會保留平均進價':'✘ 不保留平均進價（歸零）'
+  ].join('\n');
+  showConfirm('⚠️ 即將清除所有測試資料',
+    `即將清除所有測試資料，此動作無法復原。\n\n${keepLines}\n\n會清除：所有訂單／交易紀錄／作廢紀錄、進貨紀錄、進貨修正紀錄、庫存修正紀錄、月結紀錄、報表統計、本期進貨／銷售／營業額／毛利／盤盈盤損。\n\n確定要繼續下一步嗎？`,
+    startRealBusinessStep2);
+}
+
+function startRealBusinessStep2(){
+  const typed=prompt('請輸入「開始營業」四個字以確認執行（輸入錯誤將不會執行）：','');
+  if(typed===null) return;
+  if(typed.trim()!=='開始營業'){
+    showToast('輸入不正確，已取消，資料未被清除','err');
+    return;
+  }
+  const keepQty=document.getElementById('keep-stock-qty')?.checked||false;
+  const keepCost=document.getElementById('keep-avg-cost')?.checked||false;
+  const bsdEl=document.getElementById('biz-start-date');
+  const startDate = bsdEl && bsdEl.value ? bsdEl.value : todayStr();
+
+  // 保留目前庫存數量／平均進價（若有勾選），其餘一律清除重來
+  MENU=LS.get('menu')||MENU;
+  const prevState=LS.get('stockState')||{};
+  const freshState={};
+  MENU.forEach(m=>{
+    const prev=prevState[m.name]||{qty:0,avgCost:0};
+    freshState[m.name]={ qty: keepQty?prev.qty:0, avgCost: keepCost?prev.avgCost:0 };
+  });
+
+  // clear all test/operational data
+  LS.set('orders',[]);
+  LS.set('pending',[]);
+  LS.set('dailySales',{});
+  LS.set('closedDays',[]);
+  LS.set('stockRecords',[]);
+  LS.set('stockCorrections',[]);
+  LS.set('monthCloses',[]);
+  LS.set('stockNid',1);
+  LS.set('corrNid',1);
+  LS.set('ordernum',1);
+  LS.set('bizday',null);
+  LS.set('shiftOpen',false);
+  LS.set('firstShiftDate',null); // 下次開班會成為新的第一個營業期間起始日
+  LS.set('businessStartDate',startDate);
+  LS.set('stockState',freshState);
+
+  showToast('🚀 已清除測試資料，正式營業開始日：'+dispDate(startDate)+'，即將重新載入…','ok');
+  setTimeout(()=>location.reload(), 1200);
+}
+
+function renameItemEverywhere(oldName, newName){
+  if(oldName===newName) return;
+  stockState=LS.get('stockState')||stockState;
+  if(stockState[oldName]){
+    if(stockState[newName]){
+      const a=stockState[oldName], b=stockState[newName];
+      const totalQty=a.qty+b.qty;
+      const avg=totalQty!==0?(((a.qty*a.avgCost)+(b.qty*b.avgCost))/totalQty):b.avgCost;
+      stockState[newName]={qty:totalQty,avgCost:Math.round(avg*100)/100};
+    } else {
+      stockState[newName]=stockState[oldName];
+    }
+    delete stockState[oldName];
+    LS.set('stockState',stockState);
+  }
+  stockRecords=LS.get('stockRecords')||[];
+  stockRecords.forEach(r=>{ if(r.itemName===oldName) r.itemName=newName; });
+  LS.set('stockRecords',stockRecords);
+
+  stockCorrections=LS.get('stockCorrections')||[];
+  stockCorrections.forEach(c=>{ if(c.itemName===oldName) c.itemName=newName; });
+  LS.set('stockCorrections',stockCorrections);
+
+  dailySales=LS.get('dailySales')||{};
+  Object.values(dailySales).forEach(day=>{
+    if(day && day[oldName]!=null){ day[newName]=(day[newName]||0)+day[oldName]; delete day[oldName]; }
+  });
+  LS.set('dailySales',dailySales);
+
+  closedDays=LS.get('closedDays')||[];
+  closedDays.forEach(d=>{
+    if(d.dailySales && d.dailySales[oldName]!=null){ d.dailySales[newName]=(d.dailySales[newName]||0)+d.dailySales[oldName]; delete d.dailySales[oldName]; }
+    (d.orders||[]).forEach(o=>{ (o.items||[]).forEach(it=>{ if(it.name===oldName) it.name=newName; }); });
+  });
+  LS.set('closedDays',closedDays);
+
+  orders=LS.get('orders')||[];
+  orders.forEach(o=>{ (o.items||[]).forEach(it=>{ if(it.name===oldName) it.name=newName; }); });
+  LS.set('orders',orders);
+
+  pending=LS.get('pending')||[];
+  pending.forEach(o=>{ (o.items||[]).forEach(it=>{ if(it.name===oldName) it.name=newName; }); });
+  LS.set('pending',pending);
+}
+
+function editMenuItem(id, field, val){
+  const m=MENU.find(x=>x.id===id); if(!m) return;
+  if(field==='name'){
+    const v=val.trim(); if(!v) return;
+    if(v!==m.name){ renameItemEverywhere(m.name, v); }
+    m.name=v;
+  }
+  if(field==='price'){ const v=parseInt(val)||0; if(v<0) return; m.price=v; }
+  if(field==='minStock'){
+    if(val===''||val==null){ m.minStock=null; }
+    else { const v=parseInt(val); if(isNaN(v)||v<0) return; m.minStock=v; }
+  }
+  LS.set('menu',MENU);
+  buildCats(); buildMenu(); renderSettings();
+  showToast('✅ 已更新','ok');
+}
+
+function addMenuItem(){
+  const name=document.getElementById('si-name').value.trim();
+  const price=parseInt(document.getElementById('si-price').value)||0;
+  const minStockRaw=document.getElementById('si-minstock').value;
+  const minStock = minStockRaw==='' ? null : Math.max(0,parseInt(minStockRaw)||0);
+  let cat=document.getElementById('si-cat').value;
+  if(!name){showToast('請輸入品項名稱','err');return;}
+  if(cat==='__new__'){ openNewCatModal(function(nc){ if(!nc) return; addCategory(nc,true); doAddMenuItem(name,'',nc,price,minStock); }); return; }
+  doAddMenuItem(name,'',cat,price,minStock);
+}
+
+function doAddMenuItem(name,emoji,cat,price,minStock){
+  emoji='🍢'; // default, no longer user-set
+  MENU.push({id:menuNid++,name,emoji,cat,price,minStock:(minStock==null?null:minStock),active:true}); LS.set('menu',MENU);
+  document.getElementById('si-name').value=''; document.getElementById('si-price').value=''; document.getElementById('si-minstock').value='';
+  buildCats(); buildMenu(); renderSettings(); showToast('✅ 已新增「'+name+'」','ok');
+}
+
+function toggleMenuActive(id){
+  const m=MENU.find(x=>x.id===id); if(!m) return;
+  const willActivate = m.active===false;
+  showConfirm(willActivate?'確認啟用品項':'確認停賣品項',
+    willActivate
+      ? `確定要重新啟用「${m.name}」？啟用後將再次出現在點餐畫面。`
+      : `確定要停賣「${m.name}」？停賣後不會出現在點餐畫面，也無法再被加入新交易；歷史交易、報表、庫存、月結資料都會完整保留。`,
+    ()=>{
+      m.active = willActivate ? true : false;
+      LS.set('menu',MENU);
+      buildCats(); buildMenu(); renderSettings();
+      showToast(willActivate?'✅ 已啟用':'🚫 已停賣','ok');
+    });
+}
+
+// ══════════════════════════════════════════════════
+// 品項刪除（v40 新增）
+// 只從商品清單移除，歷史交易／庫存／進貨／月結／報表資料一律保留（皆以品項名稱為準，不受影響）
+// ══════════════════════════════════════════════════
+function deleteMenuItem(id){
+  const m=MENU.find(x=>x.id===id); if(!m) return;
+  showConfirm('確認刪除品項',
+    `確定要刪除「${m.name}」？刪除後將無法在點餐畫面選到此品項，此動作無法復原；但歷史交易、庫存、進貨、月結、報表資料會完整保留，不會被刪除。`,
+    ()=>{
+      MENU=MENU.filter(x=>x.id!==id);
+      LS.set('menu',MENU);
+      buildCats(); buildMenu(); renderSettings();
+      showToast('🗑️ 已刪除「'+m.name+'」','err');
+    });
+}
+
+// ══════════════════════════════════════════════════
+// 類別管理（v40 新增）：新增類別／刪除類別
+// 類別清單獨立存放於 categories，刪除類別前必須確認該類別底下已無任何品項（不論啟用／停賣）
+// ══════════════════════════════════════════════════
+function addCategory(name, silent){
+  const v=(name||'').trim();
+  if(!v){ if(!silent) showToast('請輸入類別名稱','err'); return false; }
+  categories=LS.get('categories')||categories||[];
+  if(categories.includes(v)){ if(!silent) showToast('這個類別已經存在','err'); return false; }
+  categories=[...categories, v];
+  LS.set('categories',categories);
+  if(!silent){ renderSettings(); showToast('✅ 已新增類別「'+v+'」','ok'); }
+  return true;
+}
+
+function addCategoryFromInput(){
+  const inp=document.getElementById('new-cat-inp');
+  const v=(inp?.value||'').trim();
+  if(!v){ showToast('請輸入類別名稱','err'); return; }
+  if(addCategory(v)){ if(inp) inp.value=''; }
+}
+
+function deleteCategory(name){
+  categories=LS.get('categories')||categories||[];
+  if(!categories.includes(name)){ showToast('找不到這個類別','err'); return; }
+  const itemsInCat=MENU.filter(m=>m.cat===name);
+  if(itemsInCat.length){
+    showToast(`請先移動或刪除該類別的品項（目前還有 ${itemsInCat.length} 項）`,'err');
+    return;
+  }
+  showConfirm('確認刪除類別',
+    `確定要刪除類別「${name}」？此動作無法復原。`,
+    ()=>{
+      categories=categories.filter(c=>c!==name);
+      LS.set('categories',categories);
+      renderSettings();
+      showToast('🗑️ 已刪除類別「'+name+'」','err');
+    });
+}
+
+function addActDisc(){
+  const name=document.getElementById('ad-name').value.trim();
+  const type=document.getElementById('ad-type').value;
+  const val=parseInt(document.getElementById('ad-val').value)||0;
+  if(!name){showToast('請輸入活動名稱','err');return;}
+  if(!val){showToast('請輸入折扣數值','err');return;}
+  actDiscs.push({id:adNid++,name,type,val}); LS.set('actdisc',actDiscs);
+  document.getElementById('ad-name').value=''; document.getElementById('ad-val').value='';
+  renderSettings(); showToast('✅ 已新增活動折扣','ok');
+}
+
+function delActDisc(id){
+  actDiscs=actDiscs.filter(a=>a.id!==id); LS.set('actdisc',actDiscs);
+  renderSettings(); showToast('🗑️ 已刪除活動折扣','err');
+}
+
+
+// ══════════════════════════════════════════════════
+// INVENTORY
+// ══════════════════════════════════════════════════
+function initInvSelectors(){
+  MENU = LS.get('menu') || MENU;
+  const sel = document.getElementById('inv-item-sel');
+  if(!sel) return;
+  const prev = sel.value;
+  const statusFilter=document.getElementById('purchase-status-filter')?.value||'active';
+  const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
+    : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
+    : MENU;
+  sel.innerHTML = list.length ? list.map(m=>`<option value="${m.id}">${m.name}（${fmtMoney(m.price)}）${m.active===false?'（已停賣）':''}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
+  if(list.find(m=>m.id===parseInt(prev))) sel.value=prev;
+  // auto-fill 進價 with this item's last purchase cost (falls back to menu price if never purchased before)
+  sel.onchange = ()=>{
+    const m=MENU.find(x=>x.id===parseInt(sel.value));
+    if(!m) return;
+    const ci=document.getElementById('inv-cost');
+    if(ci && !ci.dataset.edited){
+      stockRecords=LS.get('stockRecords')||[];
+      const hist=stockRecords
+        .filter(r=>r.itemName===m.name && r.type!=='adjust')
+        .sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : a.id-b.id);
+      const last=hist[hist.length-1];
+      ci.value = last ? last.cost : m.price;
+    }
+  };
+  const ci=document.getElementById('inv-cost');
+  if(ci) ci.addEventListener('input',()=>{ ci.dataset.edited='1'; });
+  // default date to today
+  const di=document.getElementById('inv-date');
+  if(di&&!di.value){ const d=new Date(); di.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  // run once so the field is pre-filled as soon as the 庫存 page opens
+  if(sel.value) sel.onchange();
+}
+
+function addStock(){
+  MENU=LS.get('menu')||MENU;
+  const sel=document.getElementById('inv-item-sel');
+  const qtyEl=document.getElementById('inv-qty');
+  const costEl=document.getElementById('inv-cost');
+  const dateEl=document.getElementById('inv-date');
+  const menuId=parseInt(sel.value);
+  const qty=parseInt(qtyEl.value)||0;
+  const cost=parseFloat(costEl.value)||0;
+  const date=dateEl.value;
+  if(!menuId){showToast('請選擇品項','err');return;}
+  if(qty<=0){showToast('請輸入進貨數量','err');return;}
+  if(!date){showToast('請選擇日期','err');return;}
+  const m=MENU.find(x=>x.id===menuId);
+  stockRecords=LS.get('stockRecords')||[];
+  stockRecords.push({id:stockNid++,date,menuId,itemName:m.name,qty,cost,sellPrice:m.price,type:'in'});
+  LS.set('stockRecords',stockRecords);
+  LS.set('stockNid',stockNid);
+  // unified ledger: qty comes in at this cost → moving-average cost recalculated
+  adjustStock(m.name, qty, cost);
+  qtyEl.value=''; costEl.value=''; delete costEl.dataset.edited;
+  renderInventory();
+  showToast(`✅ 已新增 ${m.name} × ${qty} 串進貨記錄`,'ok');
+}
+
+// 進貨紀錄：所屬區間「未月結」時可以直接編輯／刪除；一旦「已月結」，
+// 就只能在上方「新增進貨」表單新增一筆新的進貨紀錄——跟庫存修正用同一套規則，
+// 不再另外維護一份「更正紀錄」機制，避免同時存在兩套計算方式。
+function editPurchaseRecordPrompt(id){
+  stockRecords=LS.get('stockRecords')||[];
+  const r=stockRecords.find(x=>x.id===id);
+  if(!r){ showToast('找不到原始進貨記錄','err'); return; }
+  if(isDateLocked(r.date)){ showToast('此區間已月結，不可直接編輯，請於上方新增一筆新的進貨紀錄','err'); return; }
+  const newQtyStr=prompt(`修正進貨數量（目前：${r.qty} 串）：`, r.qty);
+  if(newQtyStr===null) return;
+  const newCostStr=prompt(`修正進價（目前：${fmtMoney(r.cost)}／串）：`, r.cost);
+  if(newCostStr===null) return;
+  editPurchaseRecord(id, newQtyStr, newCostStr, r.date);
+}
+
+function editPurchaseRecord(id, newQtyStr, newCostStr, newDate){
+  stockRecords=LS.get('stockRecords')||[];
+  const r=stockRecords.find(x=>x.id===id);
+  if(!r || r.type!=='in'){ showToast('找不到原始進貨記錄','err'); return; }
+  if(isDateLocked(r.date)){ showToast('此區間已月結，不可直接編輯，請於上方新增一筆新的進貨紀錄','err'); renderInventory(); return; }
+  const newQty=parseInt(newQtyStr), newCost=parseFloat(newCostStr);
+  if(isNaN(newQty)||newQty<0){ showToast('數量格式錯誤','err'); renderInventory(); return; }
+  if(isNaN(newCost)||newCost<0){ showToast('進價格式錯誤','err'); renderInventory(); return; }
+  if(newQty===r.qty && newCost===r.cost && (!newDate||newDate===r.date)){ showToast('內容沒有變動','err'); return; }
+
+  const deltaQty=newQty-r.qty;
+  if(deltaQty!==0){
+    adjustStock(r.itemName, deltaQty, deltaQty>0?newCost:null);
+  } else if(newCost!==r.cost){
+    adjustStock(r.itemName, -r.qty, null);
+    adjustStock(r.itemName, r.qty, newCost);
+  }
+  r.qty=newQty; r.cost=newCost; if(newDate) r.date=newDate;
+  LS.set('stockRecords',stockRecords);
+  renderInventory();
+  showToast('✅ 已更新進貨紀錄','ok');
+}
+
+function deletePurchaseRecord(id){
+  stockRecords=LS.get('stockRecords')||[];
+  const r=stockRecords.find(x=>x.id===id);
+  if(!r || r.type!=='in'){ showToast('找不到原始進貨記錄','err'); return; }
+  if(isDateLocked(r.date)){ showToast('此區間已月結，不可刪除，請於上方新增一筆新的進貨紀錄','err'); return; }
+  showConfirm('確認刪除進貨紀錄',
+    `品項：${r.itemName}\n數量：${r.qty} 串／${fmtMoney(r.cost)}\n\n刪除後庫存會回復到這筆進貨之前的狀態，此動作無法復原，確定要刪除嗎？`,
+    ()=>{
+      adjustStock(r.itemName, -r.qty, null);
+      stockRecords=stockRecords.filter(x=>x.id!==id);
+      LS.set('stockRecords',stockRecords);
+      renderInventory();
+      showToast('🗑️ 已刪除進貨紀錄','err');
+    });
+}
+
+// 判斷某個日期是否落在「已經月結鎖定」的區間內。
+// 月結現在可以選任意日期關帳（不限月底），所以鎖定範圍改用日期邊界判斷：
+// 只要日期 <= 目前最晚一次「已鎖定」的月結日，就算已經月結過。
+function isDateLocked(dateStr){
+  if(!dateStr) return false;
+  monthCloses=LS.get('monthCloses')||monthCloses;
+  const lockedCloses=monthCloses.filter(c=>c.locked && c.closeDate);
+  if(!lockedCloses.length) return false;
+  const maxClose=lockedCloses.reduce((mx,c)=> c.closeDate>mx?c.closeDate:mx, lockedCloses[0].closeDate);
+  return String(dateStr).slice(0,10)<=maxClose;
+}
+const isMonthLocked=isDateLocked; // 相容舊呼叫名稱
+
+// 庫存修正紀錄：所屬區間「未月結」時可以直接編輯／刪除；
+// 一旦所屬區間「已月結」，就只能在上方「庫存修正」表單新增一筆新的修正紀錄。
+function editStockTakePrompt(id, currentBalance){
+  stockRecords=LS.get('stockRecords')||[];
+  const r=stockRecords.find(x=>x.id===id);
+  if(!r || r.type!=='adjust'){ showToast('找不到原始庫存修正紀錄','err'); return; }
+  if(isDateLocked(r.date)){ showToast('此區間已月結，不可直接編輯，請於上方新增一筆新的庫存修正','err'); return; }
+  const newBalStr=prompt(`修正後庫存（目前：${currentBalance}）：`, currentBalance);
+  if(newBalStr===null) return;
+  const newBal=parseInt(newBalStr);
+  if(isNaN(newBal)){ showToast('數量格式錯誤','err'); return; }
+  const newReason=prompt('原因（選填）：', r.note||'');
+  const newDelta = newBal - (currentBalance - r.qty);
+  editStockTakeQty(id, newDelta, newReason==null?r.note:newReason);
+}
+
+function editStockTakeQty(id, newDeltaStr, newNote){
+  stockRecords=LS.get('stockRecords')||[];
+  const r=stockRecords.find(x=>x.id===id);
+  if(!r || r.type!=='adjust'){ showToast('找不到原始庫存修正紀錄','err'); return; }
+  if(isMonthLocked(r.date)){ showToast('此月份已月結，不可直接編輯，請於上方新增一筆新的庫存修正','err'); renderInventory(); return; }
+  const newDelta=parseInt(newDeltaStr);
+  if(isNaN(newDelta)){ showToast('數量格式錯誤','err'); renderInventory(); return; }
+  const noteChanged = newNote!=null && newNote!==(r.note||'');
+  if(newDelta===r.qty && !noteChanged){ showToast('內容沒有變動','err'); return; }
+  const diff=newDelta-r.qty;
+  if(diff!==0) adjustStock(r.itemName, diff, null);
+  r.qty=newDelta;
+  if(newNote!=null) r.note=newNote;
+  LS.set('stockRecords',stockRecords);
+  renderInventory();
+  showToast('✅ 已更新庫存修正紀錄','ok');
+}
+
+function deleteStockTake(id){
+  stockRecords=LS.get('stockRecords')||[];
+  const r=stockRecords.find(x=>x.id===id);
+  if(!r || r.type!=='adjust'){ showToast('找不到原始庫存修正紀錄','err'); return; }
+  if(isMonthLocked(r.date)){ showToast('此月份已月結，不可刪除，請於上方新增一筆新的庫存修正','err'); return; }
+  showConfirm('確認刪除庫存修正紀錄',
+    `品項：${r.itemName}\n異動數量：${r.qty>0?'+':''}${r.qty}\n\n刪除後庫存會回復到這筆修正之前的狀態，此動作無法復原，確定要刪除嗎？`,
+    ()=>{
+      adjustStock(r.itemName, -r.qty, null);
+      stockRecords=stockRecords.filter(x=>x.id!==id);
+      LS.set('stockRecords',stockRecords);
+      renderInventory();
+      showToast('🗑️ 已刪除庫存修正紀錄，庫存已回復','err');
+    });
+}
+
+// 依日期／建立順序重播所有庫存異動，取得每一筆紀錄「異動後」的庫存餘額
+// （renderInvRecords 與編輯視窗共用同一套邏輯，避免兩邊各算一套）
+function computeBalanceAfterMap(){
+  stockRecords=LS.get('stockRecords')||[];
+  const chronological=[...stockRecords].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:(a.id-b.id));
+  const balanceAfter={};
+  const running={};
+  chronological.forEach(r=>{
+    running[r.itemName]=(running[r.itemName]||0)+r.qty;
+    balanceAfter[r.id]=running[r.itemName];
+  });
+  return balanceAfter;
+}
+
+// ══════════════════════════════════════════════════
+// 庫存異動｜編輯（可修改：日期／數量／單價（如有）／備註）
+// 已月結期間不可修改，需先解除月結。修改後立即重新計算目前庫存／平均進價／
+// 庫存金額／毛利／月結資料（沿用既有 adjustStock／computePeriodTotals 邏輯，不重新定義一套算法）。
+// ══════════════════════════════════════════════════
+let _editRecId=null, _editRecBalanceBefore=null;
+
+function openEditRecordModal(id){
+  stockRecords=LS.get('stockRecords')||[];
+  const r=stockRecords.find(x=>x.id===id);
+  if(!r){ showToast('找不到原始紀錄','err'); return; }
+  if(isDateLocked(r.date)){ showToast('此區間已月結，不可修改，請先解除月結後再編輯','err'); return; }
+
+  _editRecId=id;
+  const isAdjust=r.type==='adjust';
+  document.getElementById('editrec-title').textContent = isAdjust ? '✏️ 編輯庫存修正紀錄' : '✏️ 編輯進貨紀錄';
+  document.getElementById('er-itemname').value=r.itemName;
+  document.getElementById('er-date').value=r.date;
+  document.getElementById('er-note').value=r.note||'';
+
+  const costWrap=document.getElementById('er-cost-wrap');
+  const qtyLabel=document.getElementById('er-qty-label');
+  const qtyInput=document.getElementById('er-qty');
+  if(isAdjust){
+    costWrap.style.display='none';
+    qtyLabel.textContent='修正後庫存';
+    const balMap=computeBalanceAfterMap();
+    const balAfter=balMap[id];
+    _editRecBalanceBefore = balAfter - r.qty; // 這筆修正「之前」的庫存，用來把畫面上輸入的「修正後庫存」換算回內部的異動量
+    qtyInput.value=balAfter;
+  } else {
+    costWrap.style.display='';
+    qtyLabel.textContent='進貨數量';
+    document.getElementById('er-cost').value=r.cost;
+    qtyInput.value=r.qty;
+  }
+  openModal('modal-editrec');
+}
+
+function submitEditRecord(){
+  if(_editRecId==null) return;
+  stockRecords=LS.get('stockRecords')||[];
+  const r=stockRecords.find(x=>x.id===_editRecId);
+  if(!r){ showToast('找不到原始紀錄','err'); closeModal('modal-editrec'); return; }
+  if(isDateLocked(r.date)){ showToast('此區間已月結，不可修改，請先解除月結後再編輯','err'); closeModal('modal-editrec'); renderInventory(); return; }
+
+  const newDate=document.getElementById('er-date').value || r.date;
+  if(isDateLocked(newDate)){ showToast('新日期落在已月結區間內，不可設定，請先解除月結','err'); return; }
+  const newNote=document.getElementById('er-note').value;
+
+  if(r.type==='in'){
+    const newQty=parseInt(document.getElementById('er-qty').value);
+    const newCost=parseFloat(document.getElementById('er-cost').value);
+    if(isNaN(newQty)||newQty<0){ showToast('數量格式錯誤','err'); return; }
+    if(isNaN(newCost)||newCost<0){ showToast('進價格式錯誤','err'); return; }
+    if(newQty===r.qty && newCost===r.cost && newDate===r.date && newNote===(r.note||'')){ showToast('內容沒有變動','err'); return; }
+    const deltaQty=newQty-r.qty;
+    if(deltaQty!==0){
+      adjustStock(r.itemName, deltaQty, deltaQty>0?newCost:null);
+    } else if(newCost!==r.cost){
+      adjustStock(r.itemName, -r.qty, null);
+      adjustStock(r.itemName, r.qty, newCost);
+    }
+    r.qty=newQty; r.cost=newCost; r.date=newDate; r.note=newNote;
+  } else {
+    const newBal=parseInt(document.getElementById('er-qty').value);
+    if(isNaN(newBal)){ showToast('數量格式錯誤','err'); return; }
+    const newDelta = newBal - _editRecBalanceBefore;
+    const noteChanged = newNote!==(r.note||'');
+    if(newDelta===r.qty && newDate===r.date && !noteChanged){ showToast('內容沒有變動','err'); return; }
+    const diff=newDelta-r.qty;
+    if(diff!==0) adjustStock(r.itemName, diff, null);
+    r.qty=newDelta; r.date=newDate; r.note=newNote;
+  }
+  LS.set('stockRecords',stockRecords);
+  closeModal('modal-editrec');
+  renderInventory(); // 立即重新計算目前庫存／平均進價／庫存金額／毛利／月結預覽
+  showToast('✅ 已更新紀錄，庫存與相關統計已重新計算','ok');
+}
+
+// Get total sales per item from all closedDays + current session
+function getSalesMap(){
+  const map={};  // {itemName: totalQty}
+  const allClosed=LS.get('closedDays')||[];
+  allClosed.forEach(d=>{
+    Object.entries(d.dailySales||{}).forEach(([name,qty])=>{
+      map[name]=(map[name]||0)+qty;
+    });
+  });
+  // current session
+  const ds=LS.get('dailySales')||{};
+  const biz=LS.get('bizday')||bizDay;
+  Object.entries(ds[biz]||{}).forEach(([name,qty])=>{
+    map[name]=(map[name]||0)+qty;
+  });
+  return map;
+}
+
+// 以下三個「期間範圍」統計，只計算目前開放期間（上次月結隔天～今天）內的資料，
+// 月結完成後 getCurrentPeriodStart() 自動往後推，這三個函式的結果就會自動歸零重新累計。
+function getPeriodSalesMap(startDate, endDate){
+  const map={};
+  closedDays=LS.get('closedDays')||[];
+  const inRange=d=> d>=startDate && d<=endDate;
+  closedDays.forEach(d=>{
+    if(d.bizDay && inRange(d.bizDay)){
+      Object.entries(d.dailySales||{}).forEach(([n,q])=>{ map[n]=(map[n]||0)+q; });
+    }
+  });
+  bizDay=LS.get('bizday')||bizDay;
+  if(bizDay && inRange(bizDay)){
+    const t=getDayStats('__today__');
+    Object.entries(t.salesMap).forEach(([n,q])=>{ map[n]=(map[n]||0)+q; });
+  }
+  return map;
+}
+function getPeriodPurchaseMap(startDate, endDate){
+  const map={};
+  stockRecords=LS.get('stockRecords')||[];
+  const inRange=d=> d>=startDate && d<=endDate;
+  stockRecords.forEach(r=>{ if(r.type==='in' && inRange(r.date)) map[r.itemName]=(map[r.itemName]||0)+r.qty; });
+  return map;
+}
+function getPeriodAdjustMap(startDate, endDate){
+  const map={};
+  stockRecords=LS.get('stockRecords')||[];
+  const inRange=d=> d>=startDate && d<=endDate;
+  stockRecords.forEach(r=>{ if(r.type==='adjust' && inRange(r.date)) map[r.itemName]=(map[r.itemName]||0)+r.qty; });
+  return map;
+}
+
+function renderInventory(){
+  stockRecords=LS.get('stockRecords')||[];
+  MENU=LS.get('menu')||MENU;
+  initInvSelectors();
+
+  // 本月進貨／本月銷售／盤盈盤損，一律只計算「目前開放期間」（上次月結隔天～今天），
+  // 月結完成後 getCurrentPeriodStart() 自動往後推，這裡就會自動歸零重新累計。
+  const periodStart=getCurrentPeriodStart(), periodEnd=todayStr();
+  const purchaseMap=getPeriodPurchaseMap(periodStart, periodEnd);
+  const soldMap=getPeriodSalesMap(periodStart, periodEnd);
+  const adjustMap=getPeriodAdjustMap(periodStart, periodEnd);
+
+  const sellPriceMap={};
+  stockRecords.forEach(r=>{ sellPriceMap[r.itemName]=r.sellPrice||sellPriceMap[r.itemName]||0; });
+  MENU.forEach(m=>{ sellPriceMap[m.name]=m.price; }); // menu price always wins for current sell price
+
+  const names0=new Set([...stockRecords.map(r=>r.itemName), ...MENU.map(m=>m.name)]);
+  const statusFilter=document.getElementById('inv-status-filter')?.value||'active';
+  let names;
+  if(statusFilter==='active'){
+    names=new Set(MENU.filter(m=>m.active!==false).map(m=>m.name));
+  } else if(statusFilter==='inactive'){
+    names=new Set(MENU.filter(m=>m.active===false).map(m=>m.name));
+  } else {
+    names=names0;
+  }
+
+  const summaryRows=[...names].sort().map(name=>{
+    const st=getStock(name);
+    const sold=soldMap[name]||0;
+    const purchaseQty=purchaseMap[name]||0;
+    const adjustQty=adjustMap[name]||0;
+    const remaining=st.qty;
+    const avgCost=st.avgCost||0;
+    const stockValue=Math.round(remaining*avgCost*100)/100;
+    const sellPrice=sellPriceMap[name]||0;
+    const profitPerUnit=sellPrice-avgCost;
+    const profitTotal=profitPerUnit*sold;
+    const profitRate=sellPrice>0?Math.round(profitPerUnit/sellPrice*100):0;
+    const m=MENU.find(x=>x.name===name);
+    const minStock=m?(m.minStock||0):0;
+    const tag=remaining<0?'<span class="inv-tag-low">⚠ 負庫存</span>':remaining===0?'<span class="inv-tag-low">缺貨</span>':(minStock>0&&remaining<=minStock)?'<span class="inv-tag-low">低庫存</span>':'<span class="inv-tag-ok">正常</span>';
+    return `<tr>
+      <td style="font-weight:700;">${name}${m&&m.active===false?' <span style="color:var(--muted);font-size:10px;">（已停賣）</span>':''}</td>
+      <td style="font-family:'DM Mono',monospace;">${purchaseQty}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--red);">${sold}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:700;color:${remaining<0?'var(--red)':remaining===0?'var(--red)':(minStock>0&&remaining<=minStock)?'var(--warn)':'var(--green)'};">${remaining}</td>
+      <td style="font-family:'DM Mono',monospace;">${fmtMoney(avgCost)}</td>
+      <td style="font-family:'DM Mono',monospace;">${fmtMoney(stockValue)}</td>
+      <td style="font-family:'DM Mono',monospace;">${fmtMoney(sellPrice)}</td>
+      <td class="${profitPerUnit>=0?'inv-profit-pos':'inv-profit-neg'}">${fmtMoney(profitPerUnit)}／串</td>
+      <td class="${profitTotal>=0?'inv-profit-pos':'inv-profit-neg'}">${fmtMoney(profitTotal)}</td>
+      <td style="font-family:'DM Mono',monospace;color:${profitRate>=0?'var(--green)':'var(--red)'};">${profitRate}%</td>
+      <td>${tag}</td>
+      <td style="font-family:'DM Mono',monospace;color:${adjustQty>0?'var(--green)':adjustQty<0?'var(--red)':'var(--muted)'};">${adjustQty>0?'+':''}${adjustQty||'—'}</td>
+    </tr>`;
+  });
+
+  // totals row
+  const totalIn=[...names].reduce((s,n)=>s+(purchaseMap[n]||0),0);
+  const totalSold=[...names].reduce((s,n)=>s+(soldMap[n]||0),0);
+  const totalRemaining=[...names].reduce((s,n)=>s+getStock(n).qty,0);
+  const totalStockValue=[...names].reduce((s,n)=>{ const st=getStock(n); return s+Math.round(st.qty*(st.avgCost||0)*100)/100; },0);
+  const totalRevEst=[...names].reduce((s,n)=>s+(soldMap[n]||0)*(sellPriceMap[n]||0),0);
+  const totalProfit=totalRevEst-[...names].reduce((s,n)=>s+(soldMap[n]||0)*(getStock(n).avgCost||0),0);
+  const totalRate=totalRevEst>0?Math.round(totalProfit/totalRevEst*100):0;
+  const totalAdjust=[...names].reduce((s,n)=>s+(adjustMap[n]||0),0);
+
+  // 庫存總覽卡片：沿用月結頁已經在用的 computePeriodTotals()，數字跟月結預覽/月結紀錄一致，不是另外算一套
+  const periodTotals=computePeriodTotals(periodStart, periodEnd);
+  const kpiEl=document.getElementById('inv-kpi-cards');
+  if(kpiEl){
+    kpiEl.innerHTML=`
+      <div class="rpt-card"><div class="rpt-card-label">本期進貨數量</div><div class="rpt-card-val orange">${totalIn} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期進貨金額</div><div class="rpt-card-val orange">${fmtMoney(periodTotals.inAmt)}</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期銷售數量</div><div class="rpt-card-val green">${totalSold} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期銷售金額</div><div class="rpt-card-val green">${fmtMoney(periodTotals.soldAmt)}</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">盤盈／盤損</div><div class="rpt-card-val ${totalAdjust>0?'green':totalAdjust<0?'red':''}">${totalAdjust>0?'+':''}${totalAdjust||0} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">月底庫存數量</div><div class="rpt-card-val">${totalRemaining} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">月底庫存金額</div><div class="rpt-card-val">${fmtMoney(totalStockValue)}</div></div>
+    `;
+  }
+
+  const summaryEl=document.getElementById('inv-summary');
+  if(!summaryEl) return;
+  summaryEl.innerHTML=summaryRows.length?`
+    <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">本期範圍：${dispDate(periodStart)} ～ ${dispDate(periodEnd)}（月結後自動歸零重新累計）</div>
+    <div style="overflow-x:auto;">
+    <table class="inv-table">
+      <thead><tr>
+        <th>品項</th><th>本月進貨</th><th>本月銷售</th><th>剩餘庫存</th>
+        <th>平均成本</th><th>庫存金額</th><th>售價</th><th>每串毛利</th><th>累計毛利</th><th>毛利率</th><th>狀態</th><th>盤盈／盤損</th>
+      </tr></thead>
+      <tbody>${summaryRows.join('')}</tbody>
+      <tfoot><tr style="background:var(--surface2);font-weight:700;">
+        <td>合計</td>
+        <td style="font-family:'DM Mono',monospace;">${totalIn}</td>
+        <td style="font-family:'DM Mono',monospace;color:var(--red);">${totalSold}</td>
+        <td style="font-family:'DM Mono',monospace;">${totalRemaining}</td>
+        <td>—</td>
+        <td style="font-family:'DM Mono',monospace;">${fmtMoney(totalStockValue)}</td>
+        <td>—</td><td>—</td>
+        <td class="${totalProfit>=0?'inv-profit-pos':'inv-profit-neg'}">${fmtMoney(totalProfit)}</td>
+        <td style="font-family:'DM Mono',monospace;color:${totalRate>=0?'var(--green)':'var(--red)'};">${totalRate}%</td>
+        <td></td>
+        <td style="font-family:'DM Mono',monospace;color:${totalAdjust>0?'var(--green)':totalAdjust<0?'var(--red)':'var(--muted)'};">${totalAdjust>0?'+':''}${totalAdjust||'—'}</td>
+      </tr></tfoot>
+    </table></div>`
+  :'<div class="no-data">尚無庫存資料，請先新增進貨</div>';
+
+  // ── Stock correction section ───────────────────
+  renderStockCorrectionForm();
+
+  // ── Month-end closing section ──────────────────
+  renderMonthClose();
+
+  // ── Records: 今日｜本週｜本月｜自訂日期 ────────
+  updateInvFilterButtons();
+  renderInvRecords();
+
+  // ── Low stock reminder（沿用報表頁同一套判斷邏輯，只是換個地方顯示）──
+  renderInvLowStock();
+}
+
+// 低庫存提醒：跟 renderReportTopKPIs() 用同一套「低於自訂最低庫存」判斷邏輯，
+// 只是改在庫存頁顯示，不是另外算一套。
+function renderInvLowStock(){
+  const el=document.getElementById('inv-low-stock');
+  if(!el) return;
+  MENU=LS.get('menu')||MENU;
+  const lowItems=MENU
+    .filter(m=>m.active!==false && (m.minStock||0)>0)
+    .map(m=>({name:m.name, remaining:getStock(m.name).qty, minStock:m.minStock}))
+    .filter(it=>it.remaining<=it.minStock)
+    .sort((a,b)=>a.remaining-b.remaining);
+  el.innerHTML = lowItems.length
+    ? `<div style="display:flex;flex-direction:column;gap:6px;">${lowItems.map(it=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 9px;background:var(--surface2);border-radius:8px;">
+          <span style="font-weight:700;">${it.name}</span>
+          <span class="inv-tag-low">${it.remaining}／最低${it.minStock}</span>
+        </div>`).join('')}</div>`
+    : '<div class="no-data" style="padding:14px 0;">✓ 目前沒有低庫存品項</div>';
+}
+
+// ══════════════════════════════════════════════════
+// STOCK CORRECTION (庫存修正) — directly set the correct current stock
+// for one item at a time. The system computes the difference itself;
+// this is never additive (5 → correct to 8 results in 8, not 13).
+// ══════════════════════════════════════════════════
+function renderStockCorrectionForm(){
+  MENU=LS.get('menu')||MENU;
+  const sel=document.getElementById('fix-item-sel');
+  if(!sel) return;
+  const prev=sel.value;
+  const statusFilter=document.getElementById('take-status-filter')?.value||'active';
+  const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
+    : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
+    : MENU;
+  sel.innerHTML = list.length ? list.map(m=>`<option value="${m.id}">${m.name}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
+  if(list.find(m=>m.id===parseInt(prev))) sel.value=prev;
+
+  const dEl=document.getElementById('fix-date');
+  if(dEl && !dEl.value){ const d=new Date(); dEl.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+  onFixItemChange();
+}
+
+function onFixItemChange(){
+  MENU=LS.get('menu')||MENU;
+  const sel=document.getElementById('fix-item-sel');
+  const curEl=document.getElementById('fix-current');
+  if(!sel||!curEl) return;
+  const m=MENU.find(x=>x.id===parseInt(sel.value));
+  curEl.value = m ? getStock(m.name).qty : 0;
+}
+
+function submitStockCorrection(){
+  MENU=LS.get('menu')||MENU;
+  const sel=document.getElementById('fix-item-sel');
+  const m=MENU.find(x=>x.id===parseInt(sel?.value));
+  if(!m){ showToast('請選擇商品','err'); return; }
+
+  const date=document.getElementById('fix-date')?.value || todayStr();
+  const newQtyStr=document.getElementById('fix-new')?.value;
+  if(newQtyStr===''||newQtyStr==null){ showToast('請輸入修正後庫存','err'); return; }
+  const newQty=parseInt(newQtyStr);
+  if(isNaN(newQty)){ showToast('修正後庫存格式錯誤','err'); return; }
+
+  const current=getStock(m.name).qty;
+  const diff=newQty-current;
+  if(diff===0){ showToast('修正後庫存與目前庫存相同，無需修正','err'); return; }
+
+  const reason=(document.getElementById('fix-reason')?.value||'').trim();
+
+  stockRecords=LS.get('stockRecords')||[];
+  // quantity-only movement — never touches average cost, sales, revenue, or 進貨金額
+  adjustStock(m.name, diff, null);
+  stockRecords.push({id:stockNid++,date,menuId:m.id,itemName:m.name,qty:diff,cost:getStock(m.name).avgCost,sellPrice:m.price,type:'adjust',note:reason});
+  LS.set('stockRecords',stockRecords);
+  LS.set('stockNid',stockNid);
+
+  const fixReasonEl=document.getElementById('fix-reason'); if(fixReasonEl) fixReasonEl.value='';
+  const fixNewEl=document.getElementById('fix-new'); if(fixNewEl) fixNewEl.value='';
+
+  renderInventory(); // refreshes 目前庫存／庫存異動／庫存金額／月結預覽 together
+  showToast(`✅ 已將「${m.name}」庫存修正為 ${newQty}`,'ok');
+}
+
+// ══════════════════════════════════════════════════
+// MONTH-END CLOSING (月底月結)
+// ══════════════════════════════════════════════════
+function currentMonthStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+// 月結不再限定月底，可以選任意日期關帳。「目前開放期間」＝
+// 最後一次「已鎖定」月結日的隔天，一路到今天為止；如果從來沒有月結過，
+// 起始日就是「第一次開班的日期」(firstShiftDate)——不可以用假的預設日期，
+// 也不可以每次都重新從最早以前開始算。全站所有「本期進貨/本期銷售/
+// 盤盈盤損」都必須呼叫 getCurrentPeriodStart()＋computePeriodTotals()，
+// 不可各自用日曆月份重新判斷。
+function getCurrentPeriodStart(){
+  monthCloses=LS.get('monthCloses')||monthCloses;
+  firstShiftDate=LS.get('firstShiftDate')||firstShiftDate;
+  const lockedCloses=monthCloses.filter(c=>c.locked && c.closeDate);
+  if(!lockedCloses.length) return firstShiftDate || bizDay || todayStr(); // 從未月結過：本期就是從第一次開班那天開始
+  const maxClose=lockedCloses.reduce((mx,c)=> c.closeDate>mx?c.closeDate:mx, lockedCloses[0].closeDate);
+  const d=new Date(maxClose+'T00:00:00'); d.setDate(d.getDate()+1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// 月結前檢查：負庫存／超賣、沒有成本的品項、異常庫存金額。
+// 有任何一項都會擋下月結，直到使用者盤點或更正進貨為止。
+function validateStockHealth(){
+  MENU=LS.get('menu')||MENU;
+  stockState=LS.get('stockState')||stockState;
+  const names=new Set([...Object.keys(stockState), ...MENU.map(m=>m.name)]);
+  const issues=[];
+  names.forEach(name=>{
+    const st=getStock(name);
+    if(st.qty<0){
+      issues.push({name, type:'negative', label:'負庫存／超賣', detail:`目前庫存為 ${st.qty}（賣出數量超過實際進貨），請先盤點或更正進貨補上正確數量`});
+    } else if(st.qty>0 && (!st.avgCost || st.avgCost<=0)){
+      issues.push({name, type:'nocost', label:'沒有成本', detail:`目前庫存 ${st.qty} 串，但平均成本為 ${fmtMoney(st.avgCost||0)}，請確認這個品項的進貨記錄是否有登打進價`});
+    } else if(st.qty>0 && st.avgCost>0 && !isFinite(st.qty*st.avgCost)){
+      issues.push({name, type:'abnormal', label:'異常庫存金額', detail:`庫存金額計算異常，請檢查進貨與盤點紀錄`});
+    }
+  });
+  return issues;
+}
+
+// 計算 [startDate, endDate]（含頭尾）這段期間的進貨/銷售/盤盈盤損/期末庫存。
+// 期末庫存一律以統一庫存帳本(stockState)的目前數量／移動平均成本為準——
+// 只要是「執行當下」立刻結算，這就等於期間內的真實結果。
+function computePeriodTotals(startDate, endDate){
+  MENU=LS.get('menu')||MENU;
+  stockRecords=LS.get('stockRecords')||[];
+  const inRange=d=> d>=startDate && d<=endDate;
+
+  const inRecs=stockRecords.filter(r=>r.type==='in' && inRange(r.date));
+  let inQty=0, inAmt=0;
+  inRecs.forEach(r=>{ inQty+=r.qty; inAmt+=r.qty*r.cost; });
+
+  // 本期盤盈／盤損：庫存修正的淨異動量（正＝盤盈，負＝盤損）
+  const adjRecs=stockRecords.filter(r=>r.type==='adjust' && inRange(r.date));
+  let adjQty=0;
+  adjRecs.forEach(r=>{ adjQty+=r.qty; });
+
+  // 本期銷售數量／金額（沿用報表已結算的每日營業額/串數，已排除作廢訂單）
+  const closedDaysAll=LS.get('closedDays')||[];
+  const curBiz=LS.get('bizday')||bizDay;
+  let soldQty=0, soldAmt=0;
+  closedDaysAll.forEach(d=>{
+    if(d.bizDay && inRange(d.bizDay)){ soldQty+=d.serials||0; soldAmt+=d.revenue||0; }
+  });
+  if(curBiz && inRange(curBiz)){
+    const t=getDayStats('__today__');
+    soldQty+=t.serials; soldAmt+=t.revenue;
+  }
+
+  // 期末庫存（＝下一期期初庫存）：一律以統一庫存帳本(stockState)的目前數量／移動平均成本為準
+  const names=new Set([...MENU.map(m=>m.name), ...Object.keys(stockState||{})]);
+  const endItems=[...names].sort().map(name=>{
+    const st=getStock(name);
+    return {name, endQty:st.qty, avgCost:st.avgCost, endValue:Math.round(st.qty*st.avgCost*100)/100};
+  }).filter(it=>it.endQty!==0 || it.avgCost>0);
+  const endQtyTotal=endItems.reduce((s,it)=>s+it.endQty,0);
+  const endValueTotal=endItems.reduce((s,it)=>s+it.endValue,0);
+
+  return {startDate, endDate, inQty, inAmt, soldQty, soldAmt, adjQty, endItems, endQtyTotal, endValueTotal};
+}
+
+function renderMonthClosePreview(){
+  const closeDate=document.getElementById('mc-date')?.value || todayStr();
+  const periodStart=getCurrentPeriodStart();
+  const t=computePeriodTotals(periodStart, closeDate);
+  const issues=validateStockHealth();
+  const el=document.getElementById('mc-preview');
+  if(!el) return;
+
+  // 本期毛利：沿用庫存頁「銷售金額-銷售成本(以目前平均進價計)」邏輯，不重新定義一套算法
+  MENU=LS.get('menu')||MENU;
+  stockRecords=LS.get('stockRecords')||stockRecords;
+  const soldMapForProfit=getPeriodSalesMap(periodStart, closeDate);
+  const sellPriceMapForProfit={};
+  stockRecords.forEach(r=>{ sellPriceMapForProfit[r.itemName]=r.sellPrice||sellPriceMapForProfit[r.itemName]||0; });
+  MENU.forEach(m=>{ sellPriceMapForProfit[m.name]=m.price; });
+  let periodProfit=0;
+  Object.entries(soldMapForProfit).forEach(([name,qty])=>{
+    const avgCost=getStock(name).avgCost||0;
+    periodProfit += qty*((sellPriceMapForProfit[name]||0)-avgCost);
+  });
+
+  el.innerHTML=`
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">本次月結期間：${dispDate(periodStart)} ～ ${dispDate(closeDate)}</div>
+    ${issues.length?`<div class="rpt-section" style="border-color:var(--red);margin-bottom:10px;">
+      <div class="rpt-sec-title" style="color:var(--red);">⛔ 月結前檢查未通過（${issues.length} 項），請先修正才能月結</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${issues.map(i=>`<div style="font-size:11px;line-height:1.6;"><b style="color:var(--red);">${i.label}</b>／${i.name}：${i.detail}</div>`).join('')}
+      </div>
+    </div>`:`<div class="rpt-section" style="border-color:var(--green);margin-bottom:10px;">
+      <div class="rpt-sec-title" style="color:var(--green);">✅ 月結前檢查通過：沒有負庫存、超賣、缺成本或異常金額的品項</div>
+    </div>`}
+    <div class="rpt-cards">
+      <div class="rpt-card"><div class="rpt-card-label">本期進貨數量</div><div class="rpt-card-val orange">${t.inQty} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期進貨金額</div><div class="rpt-card-val orange">${fmtMoney(t.inAmt)}</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期銷售數量</div><div class="rpt-card-val green">${t.soldQty} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期銷售金額</div><div class="rpt-card-val green">${fmtMoney(t.soldAmt)}</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期毛利</div><div class="rpt-card-val ${periodProfit>=0?'green':'red'}">${fmtMoney(periodProfit)}</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期盤盈／盤損</div><div class="rpt-card-val ${t.adjQty>0?'green':t.adjQty<0?'red':''}">${t.adjQty>0?'+':''}${t.adjQty} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">期末庫存數量</div><div class="rpt-card-val">${t.endQtyTotal} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">期末庫存金額</div><div class="rpt-card-val">${fmtMoney(t.endValueTotal)}</div></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--brand);margin-top:12px;margin-bottom:4px;">📋 月結明細（各品項期末庫存）</div>
+    <div style="overflow-x:auto;">
+    <table class="inv-table">
+      <thead><tr><th>品項</th><th>期末庫存</th><th>平均成本</th><th>庫存價值</th></tr></thead>
+      <tbody>${t.endItems.length?t.endItems.map(it=>`<tr${it.endQty<0?' style="color:var(--red);"':''}>
+        <td style="font-weight:700;">${it.name}</td>
+        <td style="font-family:'DM Mono',monospace;">${it.endQty}</td>
+        <td style="font-family:'DM Mono',monospace;">${fmtMoney(it.avgCost)}</td>
+        <td style="font-family:'DM Mono',monospace;">${fmtMoney(it.endValue)}</td>
+      </tr>`).join(''):'<tr><td colspan="4" class="no-data">尚無庫存資料</td></tr>'}</tbody>
+    </table></div>
+    <p style="font-size:10px;color:var(--muted);margin-top:8px;">＊期末庫存以「目前」庫存帳本為準，請在您實際想要結算的那一天（或之後）執行月結，數字才會準確；執行後會自動成為下一期的期初庫存，不需手動輸入，本期進貨/銷售/盤盈盤損也會重新歸零累計。</p>`;
+}
+
+// 月結卡預設收合，只顯示「月結日期／執行月結」；點擊「查看本月月結」才展開本期進貨/銷售/毛利/盤盈盤損/月底庫存/月結明細
+function toggleMcPreview(){
+  const el=document.getElementById('mc-preview');
+  const btn=document.getElementById('mc-toggle-btn');
+  if(!el) return;
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'block';
+  if(btn) btn.textContent=open?'📖 查看本月月結 ▾':'📖 收合月結明細 ▴';
+}
+
+function doMonthClose(){
+  if(shiftOpen){ showToast('目前仍在營業中，請先關帳才能月結','err'); return; }
+  const closeDate=document.getElementById('mc-date')?.value || todayStr();
+  const periodStart=getCurrentPeriodStart();
+  if(closeDate<periodStart){ showToast('月結日期不可早於目前開放期間的起始日 '+dispDate(periodStart),'err'); return; }
+  monthCloses=LS.get('monthCloses')||[];
+  const exists=monthCloses.find(c=>c.closeDate===closeDate);
+  if(exists && exists.locked){
+    showToast(`「${dispDate(closeDate)}」已經月結過，如需重新月結請先在下方紀錄中「解除月結」`,'err');
+    return;
+  }
+  const issues=validateStockHealth();
+  if(issues.length){
+    showToast(`⛔ 月結前檢查未通過（${issues.length} 項異常），請先修正：${issues.slice(0,3).map(i=>i.name+'（'+i.label+'）').join('、')}${issues.length>3?' 等':''}`,'err');
+    return;
+  }
+  const run=()=>{
+    const t=computePeriodTotals(periodStart, closeDate);
+    const rec={
+      id: Math.max(0,...monthCloses.map(c=>c.id||0))+1,
+      closeDate, periodStart, periodEnd:closeDate,
+      closedAt: new Date().toISOString(),
+      locked:true,
+      inQty:t.inQty, inAmt:t.inAmt,
+      soldQty:t.soldQty, soldAmt:t.soldAmt, adjQty:t.adjQty,
+      endItems:t.endItems, endQtyTotal:t.endQtyTotal, endValueTotal:t.endValueTotal
+    };
+    monthCloses=monthCloses.filter(c=>c.closeDate!==closeDate);
+    monthCloses.push(rec);
+    LS.set('monthCloses',monthCloses);
+    // 立刻把日期選擇器指向今天，讓月結後的統計卡片馬上顯示歸零的新一期
+    const mEl=document.getElementById('mc-date');
+    if(mEl) mEl.value=todayStr();
+    renderMonthClose();
+    renderReportTopKPIs();
+    showToast(`✅ 已完成 ${dispDate(periodStart)}～${dispDate(closeDate)} 的月結並已鎖定，庫存已自動結轉為下一期期初庫存，本期統計與盤盈盤損已歸零重新開始累計`,'ok');
+  };
+  if(exists){
+    showConfirm('該日期已月結過','此日期先前月結過但尚未鎖定，確定要以最新資料覆蓋嗎？',run);
+  } else run();
+}
+
+function unlockMonthClose(closeDate){
+  monthCloses=LS.get('monthCloses')||[];
+  const lockedCloses=monthCloses.filter(c=>c.locked && c.closeDate);
+  const latestClose=lockedCloses.length?lockedCloses.reduce((mx,c)=>c.closeDate>mx.closeDate?c:mx,lockedCloses[0]):null;
+  if(!latestClose || latestClose.closeDate!==closeDate){
+    showToast('只能解除最新一次月結，較早的月結紀錄無法解除','err');
+    return;
+  }
+  showConfirm('確認解除月結',
+    `解除後「${dispDate(closeDate)}」這次月結會被取消，本期進貨／本期銷售／本期營業額／本期毛利／盤盈盤損／庫存現況都會恢復成月結前的樣子（庫存本身數量不會改變，只是「本期」的計算範圍往前恢復）。確定要解除嗎？`,
+    ()=>{
+      const c=monthCloses.find(x=>x.closeDate===closeDate);
+      if(c) c.locked=false; // 保留紀錄本身（供查帳），只移除鎖定——一旦不是「最新已鎖定」，getCurrentPeriodStart() 就會自動往前恢復到這次月結之前的期間
+      LS.set('monthCloses',monthCloses);
+      const mEl=document.getElementById('mc-date');
+      if(mEl) mEl.value=closeDate; // jump back so this period's (now-live) totals are visible again
+      renderMonthClose();
+      renderReportTopKPIs();
+      showToast('🔓 已解除月結，本期統計已恢復','ok');
+    });
+}
+
+function togMC(key){
+  document.getElementById(key).classList.toggle('open');
+  document.getElementById('oa-'+key).classList.toggle('open');
+}
+
+function renderMonthClose(){
+  const mEl=document.getElementById('mc-date');
+  if(mEl && !mEl.value) mEl.value=todayStr();
+  renderMonthClosePreview();
+
+  monthCloses=LS.get('monthCloses')||[];
+  const lockedCloses=monthCloses.filter(c=>c.locked && c.closeDate);
+  const latestCloseDate=lockedCloses.length?lockedCloses.reduce((mx,c)=>c.closeDate>mx?c.closeDate:mx,lockedCloses[0].closeDate):null;
+  const recEl=document.getElementById('mc-records');
+  if(!recEl) return;
+  const sorted=[...monthCloses].filter(c=>c.closeDate).sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
+  recEl.innerHTML = sorted.length ? sorted.map(c=>{
+    const key='mc-'+c.closeDate;
+    const isLatestLocked=c.locked && c.closeDate===latestCloseDate;
+    return `<div class="order-row">
+      <div class="order-head" onclick="togMC('${key}')">
+        <span class="order-no">${dispDate(c.closeDate)}${c.locked?' <span style="color:var(--green);font-size:10px;">🔒</span>':' <span style="color:var(--muted);font-size:10px;">🔓 未鎖定</span>'}</span>
+        <span class="order-date">進貨 ${fmtMoney(c.inAmt)}／銷售 ${fmtMoney(c.soldAmt)}</span>
+        <span class="order-amt">庫存 ${fmtMoney(c.endValueTotal)}</span>
+        <span class="order-arrow" id="oa-${key}">▾</span>
+      </div>
+      <div class="order-detail" id="${key}">
+        <div class="order-detail-inner">
+          <div class="od-row"><span>結算期間</span><span>${dispDate(c.periodStart||c.closeDate)} ～ ${dispDate(c.closeDate)}</span></div>
+          <div class="od-row"><span>本期進貨</span><span>${c.inQty} 串／${fmtMoney(c.inAmt)}</span></div>
+          <div class="od-row"><span>本期銷售</span><span>${c.soldQty} 串／${fmtMoney(c.soldAmt)}</span></div>
+          <div class="od-row"><span>本期盤盈／盤損</span><span>${(c.adjQty||0)>0?'+':''}${c.adjQty||0} 串</span></div>
+          <div class="od-row"><span>期末庫存（＝下一期期初庫存）</span><span>${c.endQtyTotal} 串／${fmtMoney(c.endValueTotal)}</span></div>
+          <div style="overflow-x:auto;margin-top:8px;">
+          <table class="inv-table">
+            <thead><tr><th>品項</th><th>期末庫存</th><th>平均成本</th><th>庫存價值</th></tr></thead>
+            <tbody>${c.endItems.map(it=>`<tr>
+              <td style="font-weight:700;">${it.name}</td>
+              <td style="font-family:'DM Mono',monospace;">${it.endQty}</td>
+              <td style="font-family:'DM Mono',monospace;">${fmtMoney(it.avgCost)}</td>
+              <td style="font-family:'DM Mono',monospace;">${fmtMoney(it.endValue)}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:6px;">結算時間：${dispDate(c.closedAt)} ${new Date(c.closedAt).toLocaleTimeString('zh-TW')}</div>
+          ${isLatestLocked?`<button class="order-del-btn" onclick="unlockMonthClose('${c.closeDate}')">🔓 解除月結</button>`:(c.locked?`<div style="font-size:10px;color:var(--muted);">只能解除最新一次月結</div>`:'')}
+        </div>
+      </div>
+    </div>`;
+  }).join('') : '<div class="no-data">尚無月結紀錄</div>';
+}
+
+// ══════════════════════════════════════════════════
+// INVENTORY RECORDS CALENDAR (月覽＋日期明細)
+// ══════════════════════════════════════════════════
+function setInvFilter(mode){
+  invFilterMode=mode;
+  const customEl=document.getElementById('inv-custom-date');
+  if(mode==='custom'){
+    if(customEl){ customEl.style.display='inline-block'; if(!customEl.value) customEl.value=todayStr(); invCustomDate=customEl.value; }
+  } else if(customEl){ customEl.style.display='none'; }
+  updateInvFilterButtons();
+  renderInvRecords();
+}
+function onInvCustomDateChange(){
+  invCustomDate=document.getElementById('inv-custom-date')?.value||todayStr();
+  renderInvRecords();
+}
+function updateInvFilterButtons(){
+  ['today','week','month','custom'].forEach(m=>{
+    const btn=document.getElementById('inv-f-'+m);
+    if(btn) btn.classList.toggle('active', invFilterMode===m);
+  });
+}
+
+function toggleInvRow(key){
+  const el=document.getElementById(key);
+  const arrow=document.getElementById('ia-'+key);
+  if(!el) return;
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'table-row';
+  if(arrow) arrow.textContent=open?'▸':'▾';
+}
+
+function renderInvRecords(){
+  stockRecords=LS.get('stockRecords')||[];
+  const filterItem=(document.getElementById('inv-filter-item')?.value||'').toLowerCase();
+
+  // 異動後庫存：依日期／建立順序重播所有「進貨／庫存修正」異動的累計結果，
+  // 進貨紀錄現在可以直接編輯，r.qty/r.cost 永遠是目前的有效值，不需要再另外
+  // 疊加更正紀錄——這樣重播出來的總和自然會跟真正的庫存帳本(stockState)一致。
+  // （不含銷售——銷售請見「報表」；這裡只反映進貨與庫存修正兩種異動）
+  const balanceAfter=computeBalanceAfterMap();
+
+  // 日期篩選：今日｜本週｜本月｜自訂日期
+  let rangeStart, rangeEnd, title;
+  const today=todayStr();
+  if(invFilterMode==='today'){
+    rangeStart=rangeEnd=today; title='📅 今日庫存異動';
+  } else if(invFilterMode==='week'){
+    const wk=getWeekRange(today); rangeStart=wk.start; rangeEnd=wk.end; title=`📅 本週庫存異動（${dispDate(wk.start)}～${dispDate(wk.end)}）`;
+  } else if(invFilterMode==='month'){
+    const mo=getMonthRange(today); rangeStart=mo.start; rangeEnd=mo.end; title=`📅 本月庫存異動（${dispDate(mo.start)}～${dispDate(mo.end)}）`;
+  } else {
+    const d=invCustomDate||document.getElementById('inv-custom-date')?.value||today;
+    rangeStart=rangeEnd=d; title=`📅 ${dispDate(d)} 庫存異動`;
+  }
+
+  const filtered=[...stockRecords].reverse().filter(r=>{
+    if(filterItem && !r.itemName.toLowerCase().includes(filterItem)) return false;
+    return r.date>=rangeStart && r.date<=rangeEnd;
+  });
+
+  const recEl=document.getElementById('inv-records');
+  if(!recEl) return;
+
+  const rowsHtml=filtered.map(r=>{
+    const key='ir'+r.id;
+    const isAdjust=r.type==='adjust';
+    const locked=isDateLocked(r.date);
+    const note = r.note || '—';
+    const actionHtml = locked
+      ? `<span style="font-size:10px;color:var(--muted);">🔒 已月結</span>`
+      : `<button class="set-del" onclick="event.stopPropagation();openEditRecordModal(${r.id})">編輯</button>
+         <button class="set-del" style="color:var(--red);border-color:var(--red);" onclick="event.stopPropagation();${isAdjust?`deleteStockTake(${r.id})`:`deletePurchaseRecord(${r.id})`}">刪除</button>`;
+    return `<tr onclick="toggleInvRow('${key}')" style="cursor:pointer;">
+        <td style="font-family:'DM Mono',monospace;font-size:11px;"><span id="ia-${key}" style="display:inline-block;width:12px;color:var(--muted);">▸</span>${dispDate(r.date)}</td>
+        <td style="font-weight:700;">${r.itemName}</td>
+        <td>${isAdjust?'<span class="inv-rec-type-adj">庫存修正</span>':'<span class="inv-rec-type-in">進貨</span>'}</td>
+        <td style="font-family:'DM Mono',monospace;">${r.qty>0?'+':''}${r.qty}</td>
+        <td style="font-family:'DM Mono',monospace;">${balanceAfter[r.id]}</td>
+        <td style="font-size:11px;color:var(--muted);">${note}</td>
+        <td style="white-space:nowrap;" onclick="event.stopPropagation();">${actionHtml}</td>
+      </tr>
+      <tr id="${key}" style="display:none;">
+        <td colspan="7" style="background:var(--surface2);padding:10px 12px;">
+          ${!isAdjust?`<div class="od-row"><span>進價／串</span><span>${fmtMoney(r.cost)}</span></div>
+          <div class="od-row"><span>小計成本</span><span>${fmtMoney(r.qty*r.cost)}</span></div>`:'<div style="font-size:11px;color:var(--muted);">庫存修正不計入進貨成本、不影響營業額與平均成本</div>'}
+        </td>
+      </tr>`;
+  }).join('');
+
+  recEl.innerHTML=`<div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px;">${title}</div>`+
+    (filtered.length?`
+    <div style="overflow-x:auto;">
+    <table class="inv-table">
+      <thead><tr><th>日期</th><th>商品</th><th>類型</th><th>異動數量</th><th>異動後庫存</th><th>備註</th><th>操作</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table></div>`
+    :'<div class="no-data">此範圍內無庫存異動記錄</div>');
+}
+
+
+// ══════════════════════════════════════════════════
+// VIEW SWITCH
+// ══════════════════════════════════════════════════
+function showView(v){
+  document.getElementById('view-pos').style.display=v==='pos'?'flex':'none';
+  document.getElementById('view-report').classList.toggle('active',v==='report');
+  document.getElementById('view-inventory').classList.toggle('active',v==='inventory');
+  document.getElementById('view-settings').classList.toggle('active',v==='settings');
+  ['pos','rpt','inv','set'].forEach(k=>document.getElementById('btn-'+k)?.classList.toggle('active',k===v.slice(0,3)));
+  if(v==='report'){ renderReport(); }
+  if(v==='inventory') renderInventory();
+  if(v==='settings') renderSettings();
+}
+
+// ══════════════════════════════════════════════════
+// CONFIRM / MODAL
+// ══════════════════════════════════════════════════
+function showConfirm(title,msg,onOk){
+  document.getElementById('confirm-title').textContent=title;
+  document.getElementById('confirm-msg').textContent=msg;
+  const btn=document.getElementById('confirm-ok');
+  btn.onclick=()=>{closeModal('modal-confirm');onOk();};
+  document.getElementById('modal-confirm').classList.remove('hidden');
+}
+function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+function openModal(id){
+  if(id==='modal-startbiz') renderSettings();
+  if(id==='modal-stockfix') renderStockCorrectionForm();
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// ══════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════
+let _tt;
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+type+' show';
+  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+init();
+</script>
+<script>
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>

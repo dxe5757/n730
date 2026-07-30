@@ -1,0 +1,1 @@
+上傳4個檔案到GitHub Pages，用Safari加入主畫面
