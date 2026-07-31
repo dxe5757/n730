@@ -863,7 +863,21 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
 // ══════════════════════════════════════════════════
 const LS={
   get:k=>{try{return JSON.parse(localStorage.getItem('hr_'+k))}catch{return null}},
-  set:(k,v)=>localStorage.setItem('hr_'+k,JSON.stringify(v))
+  // 寫入後立刻讀回確認真的存進 localStorage（而不是只呼叫 setItem 就假設一定成功）。
+  // 這是為了避免「本期進貨金額」（來自 stockRecords）已經正確累加，但「目前庫存」
+  // （來自 stockState）卻因為單次寫入沒有真的落地（例如平板瀏覽器儲存空間緊繃、
+  // 背景切換時寫入被中斷）而沒有同步更新，兩邊資料悄悄兜不起來、卻沒有任何錯誤訊息。
+  set:(k,v)=>{
+    const payload=JSON.stringify(v);
+    for(let attempt=0; attempt<3; attempt++){
+      try{
+        localStorage.setItem('hr_'+k, payload);
+        if(localStorage.getItem('hr_'+k)===payload) return true;
+      }catch(err){ /* 空間不足或被封鎖，重試 */ }
+    }
+    console.error('LS.set 寫入失敗（已重試3次仍未成功）：', k);
+    return false;
+  }
 };
 
 // ══════════════════════════════════════════════════
@@ -1009,6 +1023,12 @@ function ensureStockItem(name){
 // deltaQty>0 with a unitCost => stock coming IN at a known cost (purchase / correction), recalculated via moving average.
 // deltaQty<0, or deltaQty>0 with unitCost=null => quantity-only movement (sale, void-restore, stocktake) that does NOT change avgCost.
 function adjustStock(name, deltaQty, unitCost){
+  // 一律先取得「目前實際存在 localStorage 裡」最新的庫存帳本，再用這份最新資料去計算，
+  // 不要先用記憶體中可能過時的舊庫存物件算好，最後才整個蓋回去——
+  // 舊寫法是「算完才 LS.get 一次」，如果算的當下記憶體資料已經跟 localStorage 不同步，
+  // 算出來的結果蓋回去時就會連帶蓋掉其他異動剛寫入的最新資料，導致「本期進貨金額」
+  // （直接統計 stockRecords，不受影響）已經加上去了，但「目前庫存」（stockState）卻沒有同步增加。
+  stockState=LS.get('stockState')||stockState;
   const s=ensureStockItem(name);
   if(deltaQty>0 && unitCost!=null && !isNaN(unitCost)){
     const newQty=s.qty+deltaQty;
@@ -1018,9 +1038,12 @@ function adjustStock(name, deltaQty, unitCost){
   } else {
     s.qty+=deltaQty;
   }
-  stockState=LS.get('stockState')||stockState; // avoid clobbering concurrent tab writes where possible
   stockState[name]=s;
-  LS.set('stockState',stockState);
+  const ok=LS.set('stockState',stockState);
+  if(!ok && typeof showToast==='function'){
+    // 寫入真的失敗時明確告知，不要讓畫面看起來操作成功、但庫存其實沒有同步更新
+    showToast('⚠️ 庫存寫入失敗，請重新整理頁面後再試一次，避免庫存金額對不起來','err');
+  }
   return {...s};
 }
 function getStock(name){ stockState=LS.get('stockState')||stockState; return stockState[name]||{qty:0,avgCost:0}; }
@@ -2483,6 +2506,7 @@ function addStock(){
   if(!menuId){showToast('請選擇品項','err');return;}
   if(qty<=0){showToast('請輸入進貨數量','err');return;}
   if(!date){showToast('請選擇日期','err');return;}
+  if(isDateLocked(date)){ showToast('此日期已月結封存，不可新增進貨記錄，請選擇月結之後的日期','err'); return; }
   const m=MENU.find(x=>x.id===menuId);
   stockRecords=LS.get('stockRecords')||[];
   stockRecords.push({id:stockNid++,date,menuId,itemName:m.name,qty,cost,sellPrice:m.price,type:'in'});
@@ -2959,6 +2983,7 @@ function submitStockCorrection(){
   if(!m){ showToast('請選擇商品','err'); return; }
 
   const date=document.getElementById('fix-date')?.value || todayStr();
+  if(isDateLocked(date)){ showToast('此日期已月結封存，不可新增庫存修正，請選擇月結之後的日期','err'); return; }
   const newQtyStr=document.getElementById('fix-new')?.value;
   if(newQtyStr===''||newQtyStr==null){ showToast('請輸入修正後庫存','err'); return; }
   const newQty=parseInt(newQtyStr);
