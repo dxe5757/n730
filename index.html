@@ -2785,6 +2785,13 @@ function renderInventory(){
   MENU.forEach(m=>{ sellPriceMap[m.name]=m.price; }); // menu price always wins for current sell price
 
   const names0=new Set([...stockRecords.map(r=>r.itemName), ...MENU.map(m=>m.name)]);
+  // 「目前庫存金額」必須是「所有品項」目前剩餘庫存 × 目前平均成本的加總，
+  // 不能只算畫面上依「在售中／已停用」篩選出來的子集，否則會跟期初庫存金額／本期進貨金額（皆為全品項口徑）對不起來。
+  // 因此這裡另外用一份「全品項」名單（含庫存帳本 stockState 裡所有品項，即使已從菜單移除也不遺漏），
+  // 跟畫面篩選用的 names 分開，不影響下面表格本身的篩選顯示。
+  stockState=LS.get('stockState')||stockState;
+  const allStockNames=new Set([...names0, ...Object.keys(stockState||{})]);
+  const currentStockValueAll=[...allStockNames].reduce((s,n)=>{ const st=getStock(n); return s+Math.round(st.qty*(st.avgCost||0)*100)/100; },0);
   const statusFilter=document.getElementById('inv-status-filter')?.value||'active';
   let names;
   if(statusFilter==='active'){
@@ -2846,7 +2853,7 @@ function renderInventory(){
       <div class="rpt-card"><div class="rpt-card-label">期初庫存金額</div><div class="rpt-card-val">${fmtMoney(beginValueTotal)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">本期進貨金額</div><div class="rpt-card-val orange">${fmtMoney(periodTotals.inAmt)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">本期銷售金額</div><div class="rpt-card-val green">${fmtMoney(periodTotals.soldAmt)}</div></div>
-      <div class="rpt-card"><div class="rpt-card-label">月底庫存金額</div><div class="rpt-card-val">${fmtMoney(totalStockValue)}</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">目前庫存金額</div><div class="rpt-card-val">${fmtMoney(currentStockValueAll)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">本期毛利</div><div class="rpt-card-val ${totalProfit>=0?'green':'red'}">${fmtMoney(totalProfit)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">盤盈／盤損</div><div class="rpt-card-val ${totalAdjust>0?'green':totalAdjust<0?'red':''}">${totalAdjust>0?'+':''}${totalAdjust||0} 串</div></div>
     `;
