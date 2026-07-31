@@ -3207,16 +3207,15 @@ function unlockMonthClose(closeDate){
     return;
   }
   showConfirm('確認解除月結',
-    `解除後「${dispDate(closeDate)}」這次月結會被取消，本期進貨／本期銷售／本期營業額／本期毛利／盤盈盤損／庫存現況都會恢復成月結前的樣子（庫存本身數量不會改變，只是「本期」的計算範圍往前恢復）。確定要解除嗎？`,
+    `解除後「${dispDate(closeDate)}」這筆月結紀錄會被直接刪除，本期進貨／本期銷售／本期營業額／本期毛利／盤盈盤損／庫存現況都會恢復成月結前的樣子（庫存本身數量不會改變，只是「本期」的計算範圍往前恢復）。刪除後無法復原，確定要解除嗎？`,
     ()=>{
-      const c=monthCloses.find(x=>x.closeDate===closeDate);
-      if(c) c.locked=false; // 保留紀錄本身（供查帳），只移除鎖定——一旦不是「最新已鎖定」，getCurrentPeriodStart() 就會自動往前恢復到這次月結之前的期間
+      monthCloses=monthCloses.filter(c=>c.closeDate!==closeDate);
       LS.set('monthCloses',monthCloses);
       const mEl=document.getElementById('mc-date');
       if(mEl) mEl.value=closeDate; // jump back so this period's (now-live) totals are visible again
       renderMonthClose();
       renderReportTopKPIs();
-      showToast('🔓 已解除月結，本期統計已恢復','ok');
+      showToast('🔓 已解除月結並刪除該筆紀錄，本期統計已恢復','ok');
     });
 }
 
@@ -3417,7 +3416,23 @@ init();
 </script>
 <script>
 if('serviceWorker' in navigator && location.protocol==='https:'){
-  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  let refreshing=false;
+  // 新版本裝好、開始接管頁面時，自動重新整理一次抓最新內容——
+  // 不用再手動清瀏覽資料／快取（那樣連 localStorage 裡的營業資料都會一起被清掉）。
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(refreshing) return;
+    refreshing=true;
+    location.reload();
+  });
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.update().catch(()=>{}); // 開啟當下就主動檢查一次有沒有新版本
+      // App 從背景切回前景時，也順便檢查一次是否有新版本可以更新
+      document.addEventListener('visibilitychange',()=>{
+        if(document.visibilityState==='visible') reg.update().catch(()=>{});
+      });
+    }).catch(()=>{});
+  });
 }
 </script>
 </body>
