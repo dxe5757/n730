@@ -2769,6 +2769,17 @@ function renderInventory(){
   const soldMap=getPeriodSalesMap(periodStart, periodEnd);
   const adjustMap=getPeriodAdjustMap(periodStart, periodEnd);
 
+  // 期初庫存（＝上一次月結的期末庫存）：直接沿用月結紀錄裡已經存好的 endItems／endValueTotal，
+  // 不是另外重新定義一套算法；從未月結過的話，本期就是從零開始，期初庫存視為 0。
+  monthCloses=LS.get('monthCloses')||monthCloses;
+  const lockedClosesForBegin=monthCloses.filter(c=>c.locked && c.closeDate);
+  const beginCloseRec = lockedClosesForBegin.length
+    ? lockedClosesForBegin.reduce((mx,c)=> (!mx||c.closeDate>mx.closeDate)?c:mx, null)
+    : null;
+  const beginItemsMap={};
+  (beginCloseRec?.endItems||[]).forEach(it=>{ beginItemsMap[it.name]={qty:it.endQty, value:it.endValue}; });
+  const beginValueTotal = beginCloseRec?.endValueTotal||0;
+
   const sellPriceMap={};
   stockRecords.forEach(r=>{ sellPriceMap[r.itemName]=r.sellPrice||sellPriceMap[r.itemName]||0; });
   MENU.forEach(m=>{ sellPriceMap[m.name]=m.price; }); // menu price always wins for current sell price
@@ -2786,6 +2797,7 @@ function renderInventory(){
 
   const summaryRows=[...names].sort().map(name=>{
     const st=getStock(name);
+    const beginQty=beginItemsMap[name]?.qty||0;
     const sold=soldMap[name]||0;
     const purchaseQty=purchaseMap[name]||0;
     const adjustQty=adjustMap[name]||0;
@@ -2801,6 +2813,7 @@ function renderInventory(){
     const tag=remaining<0?'<span class="inv-tag-low">⚠ 負庫存</span>':remaining===0?'<span class="inv-tag-low">缺貨</span>':(minStock>0&&remaining<=minStock)?'<span class="inv-tag-low">低庫存</span>':'<span class="inv-tag-ok">正常</span>';
     return `<tr>
       <td style="font-weight:700;">${name}${m&&m.active===false?' <span style="color:var(--muted);font-size:10px;">（已停賣）</span>':''}</td>
+      <td style="font-family:'DM Mono',monospace;">${beginQty}</td>
       <td style="font-family:'DM Mono',monospace;">${purchaseQty}</td>
       <td style="font-family:'DM Mono',monospace;color:var(--red);">${sold}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:700;color:${remaining<0?'var(--red)':remaining===0?'var(--red)':(minStock>0&&remaining<=minStock)?'var(--warn)':'var(--green)'};">${remaining}</td>
@@ -2808,7 +2821,6 @@ function renderInventory(){
       <td style="font-family:'DM Mono',monospace;">${fmtMoney(stockValue)}</td>
       <td style="font-family:'DM Mono',monospace;">${fmtMoney(sellPrice)}</td>
       <td class="${profitPerUnit>=0?'inv-profit-pos':'inv-profit-neg'}">${fmtMoney(profitPerUnit)}／串</td>
-      <td class="${profitTotal>=0?'inv-profit-pos':'inv-profit-neg'}">${fmtMoney(profitTotal)}</td>
       <td style="font-family:'DM Mono',monospace;color:${profitRate>=0?'var(--green)':'var(--red)'};">${profitRate}%</td>
       <td>${tag}</td>
       <td style="font-family:'DM Mono',monospace;color:${adjustQty>0?'var(--green)':adjustQty<0?'var(--red)':'var(--muted)'};">${adjustQty>0?'+':''}${adjustQty||'—'}</td>
@@ -2816,6 +2828,7 @@ function renderInventory(){
   });
 
   // totals row
+  const totalBegin=[...names].reduce((s,n)=>s+(beginItemsMap[n]?.qty||0),0);
   const totalIn=[...names].reduce((s,n)=>s+(purchaseMap[n]||0),0);
   const totalSold=[...names].reduce((s,n)=>s+(soldMap[n]||0),0);
   const totalRemaining=[...names].reduce((s,n)=>s+getStock(n).qty,0);
@@ -2830,13 +2843,12 @@ function renderInventory(){
   const kpiEl=document.getElementById('inv-kpi-cards');
   if(kpiEl){
     kpiEl.innerHTML=`
-      <div class="rpt-card"><div class="rpt-card-label">本期進貨數量</div><div class="rpt-card-val orange">${totalIn} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">期初庫存金額</div><div class="rpt-card-val">${fmtMoney(beginValueTotal)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">本期進貨金額</div><div class="rpt-card-val orange">${fmtMoney(periodTotals.inAmt)}</div></div>
-      <div class="rpt-card"><div class="rpt-card-label">本期銷售數量</div><div class="rpt-card-val green">${totalSold} 串</div></div>
       <div class="rpt-card"><div class="rpt-card-label">本期銷售金額</div><div class="rpt-card-val green">${fmtMoney(periodTotals.soldAmt)}</div></div>
-      <div class="rpt-card"><div class="rpt-card-label">盤盈／盤損</div><div class="rpt-card-val ${totalAdjust>0?'green':totalAdjust<0?'red':''}">${totalAdjust>0?'+':''}${totalAdjust||0} 串</div></div>
-      <div class="rpt-card"><div class="rpt-card-label">月底庫存數量</div><div class="rpt-card-val">${totalRemaining} 串</div></div>
       <div class="rpt-card"><div class="rpt-card-label">月底庫存金額</div><div class="rpt-card-val">${fmtMoney(totalStockValue)}</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期毛利</div><div class="rpt-card-val ${totalProfit>=0?'green':'red'}">${fmtMoney(totalProfit)}</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">盤盈／盤損</div><div class="rpt-card-val ${totalAdjust>0?'green':totalAdjust<0?'red':''}">${totalAdjust>0?'+':''}${totalAdjust||0} 串</div></div>
     `;
   }
 
@@ -2847,19 +2859,19 @@ function renderInventory(){
     <div style="overflow-x:auto;">
     <table class="inv-table">
       <thead><tr>
-        <th>品項</th><th>本月進貨</th><th>本月銷售</th><th>剩餘庫存</th>
-        <th>平均成本</th><th>庫存金額</th><th>售價</th><th>每串毛利</th><th>累計毛利</th><th>毛利率</th><th>狀態</th><th>盤盈／盤損</th>
+        <th>品項</th><th>期初庫存</th><th>本期進貨</th><th>本期銷售</th><th>剩餘庫存</th>
+        <th>平均成本</th><th>庫存金額</th><th>售價</th><th>每串毛利</th><th>毛利率</th><th>狀態</th><th>盤盈／盤損</th>
       </tr></thead>
       <tbody>${summaryRows.join('')}</tbody>
       <tfoot><tr style="background:var(--surface2);font-weight:700;">
         <td>合計</td>
+        <td style="font-family:'DM Mono',monospace;">${totalBegin}</td>
         <td style="font-family:'DM Mono',monospace;">${totalIn}</td>
         <td style="font-family:'DM Mono',monospace;color:var(--red);">${totalSold}</td>
         <td style="font-family:'DM Mono',monospace;">${totalRemaining}</td>
         <td>—</td>
         <td style="font-family:'DM Mono',monospace;">${fmtMoney(totalStockValue)}</td>
         <td>—</td><td>—</td>
-        <td class="${totalProfit>=0?'inv-profit-pos':'inv-profit-neg'}">${fmtMoney(totalProfit)}</td>
         <td style="font-family:'DM Mono',monospace;color:${totalRate>=0?'var(--green)':'var(--red)'};">${totalRate}%</td>
         <td></td>
         <td style="font-family:'DM Mono',monospace;color:${totalAdjust>0?'var(--green)':totalAdjust<0?'var(--red)':'var(--muted)'};">${totalAdjust>0?'+':''}${totalAdjust||'—'}</td>
