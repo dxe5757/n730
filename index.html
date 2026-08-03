@@ -916,7 +916,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-9)';
+const APP_VERSION='v40 (hangrou-v40-11)';
 const APP_BUILD_DATE='2026-08-03';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -1085,6 +1085,24 @@ function reconcileAvgCostFromPurchases(name){
     showToast('⚠️ 庫存寫入失敗，請重新整理頁面後再試一次','err');
   }
 }
+// 專門給「刪除進貨紀錄」用：如果刪掉的是這個品項「最後一筆」進貨紀錄，
+// 剩下的進貨紀錄會是 0 筆，reconcileAvgCostFromPurchases 這時候不敢亂動（避免誤刪成本）。
+// 但這裡因為知道「剛剛刪掉的是哪一筆」，可以直接用那筆紀錄當初存好的「進貨前平均成本」
+// （prevAvgCost）退回去，正確恢復成這筆進貨發生之前的樣子。
+// 舊資料（這次更新之前建立的進貨紀錄）沒有 prevAvgCost 可用時，保守起見不動它。
+function reconcileAvgCostAfterDelete(name, deletedRecord){
+  const avgCost=computeReconciledAvgCost(name);
+  if(avgCost!==null){ reconcileAvgCostFromPurchases(name); return; }
+  if(!deletedRecord || deletedRecord.prevAvgCost==null) return;
+  stockState=LS.get('stockState')||stockState;
+  const s=ensureStockItem(name);
+  s.avgCost=deletedRecord.prevAvgCost;
+  stockState[name]=s;
+  const ok=LS.set('stockState',stockState);
+  if(!ok && typeof showToast==='function'){
+    showToast('⚠️ 庫存寫入失敗，請重新整理頁面後再試一次','err');
+  }
+}
 
 // 設定頁「重新校正平均成本」：檢查每個品項「目前平均成本」跟「用全部進貨紀錄重算出來的正確平均成本」
 // 是否對得起來，把對不起來的品項列出來給使用者確認，按下確認才會真的套用（不會默默自動修改）。
@@ -1098,6 +1116,7 @@ function previewRecalibrateAvgCosts(){
     const fixed=computeReconciledAvgCost(name);
     if(fixed===null) return; // 沒有進貨紀錄可依據，跳過
     const cur=getStock(name).avgCost||0;
+    if(Math.round(cur)===Math.round(fixed)) return; // 畫面上四捨五入後顯示的金額其實一樣，只是零點幾元的計算誤差，不用打擾使用者
     if(Math.abs(cur-fixed)>=0.01){ diffs.push({name, cur, fixed}); }
   });
   if(!diffs.length){ showToast('✅ 檢查完成，目前所有品項的平均成本都是正確的，不需要校正','ok'); return; }
@@ -2574,8 +2593,9 @@ function addStock(){
   if(!date){showToast('請選擇日期','err');return;}
   if(isDateLocked(date)){ showToast('此日期已月結封存，不可新增進貨記錄，請選擇月結之後的日期','err'); return; }
   const m=MENU.find(x=>x.id===menuId);
+  const prevAvgCost=getStock(m.name).avgCost||0; // 這筆進貨套用「之前」的平均成本，供之後刪除這筆紀錄時可以正確退回
   stockRecords=LS.get('stockRecords')||[];
-  stockRecords.push({id:stockNid++,date,menuId,itemName:m.name,qty,cost,sellPrice:m.price,type:'in'});
+  stockRecords.push({id:stockNid++,date,menuId,itemName:m.name,qty,cost,sellPrice:m.price,type:'in',prevAvgCost});
   LS.set('stockRecords',stockRecords);
   LS.set('stockNid',stockNid);
   // unified ledger: qty comes in at this cost → moving-average cost recalculated
@@ -2632,7 +2652,7 @@ function deletePurchaseRecord(id){
       adjustStock(r.itemName, -r.qty, null); // 先把數量退回
       stockRecords=stockRecords.filter(x=>x.id!==id);
       LS.set('stockRecords',stockRecords);
-      reconcileAvgCostFromPurchases(r.itemName); // 平均成本用「剩餘進貨紀錄」重新算好、直接寫回
+      reconcileAvgCostAfterDelete(r.itemName, r); // 平均成本用「剩餘進貨紀錄」重算；如果這是最後一筆，改用這筆紀錄當初存的「進貨前平均成本」退回
       renderInventory();
       showToast('🗑️ 已刪除進貨紀錄','err');
     });
