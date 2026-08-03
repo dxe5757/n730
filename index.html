@@ -475,25 +475,9 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
         <div id="mc-records"></div>
       </div>
 
-      <!-- Stock records: 今日｜本週｜本月｜自訂日期（次要區塊，不佔主要版面） -->
-      <div class="set-section">
-        <div class="set-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-          <span>📋 庫存異動</span>
-          <input class="fi" id="inv-filter-item" placeholder="搜尋品項" style="width:120px;padding:4px 8px;font-size:11px;" oninput="renderInvRecords()">
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;">
-          <button class="tbtn date-filter-btn" id="inv-f-today" onclick="setInvFilter('today')">今日</button>
-          <button class="tbtn date-filter-btn" id="inv-f-week" onclick="setInvFilter('week')">本週</button>
-          <button class="tbtn date-filter-btn" id="inv-f-month" onclick="setInvFilter('month')">本月</button>
-          <button class="tbtn date-filter-btn" id="inv-f-custom" onclick="setInvFilter('custom')">📅 自訂日期</button>
-          <input class="fi" id="inv-custom-date" type="date" style="display:none;max-width:150px;" onchange="onInvCustomDateChange()">
-        </div>
-        <div id="inv-records" style="margin-top:10px;"></div>
-      </div>
-
     </div>
 
-    <!-- RIGHT: sidebar -->
+    <!-- RIGHT: sidebar（依指定順序：新增進貨→低庫存提醒→庫存盤點→庫存異動→月結） -->
     <div class="inv-side-col">
 
       <!-- Add stock form -->
@@ -527,6 +511,35 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
         </div>
       </div>
 
+      <!-- Low stock reminder -->
+      <div class="set-section">
+        <div class="set-title">🔔 低庫存提醒</div>
+        <div id="inv-low-stock"></div>
+      </div>
+
+      <!-- Stock correction: 入口卡片，點擊才展開內容 -->
+      <div class="set-section">
+        <div class="set-title">✅ 庫存盤點</div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">盤點可更新實際庫存數量</p>
+        <button class="btn-add-form" style="width:100%;" onclick="openModal('modal-stockfix')">開始盤點</button>
+      </div>
+
+      <!-- Stock records: 今日｜本週｜本月｜自訂日期（次要區塊，不佔主要版面） -->
+      <div class="set-section">
+        <div class="set-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <span>📋 庫存異動</span>
+          <input class="fi" id="inv-filter-item" placeholder="搜尋品項" style="width:120px;padding:4px 8px;font-size:11px;" oninput="renderInvRecords()">
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;">
+          <button class="tbtn date-filter-btn" id="inv-f-today" onclick="setInvFilter('today')">今日</button>
+          <button class="tbtn date-filter-btn" id="inv-f-week" onclick="setInvFilter('week')">本週</button>
+          <button class="tbtn date-filter-btn" id="inv-f-month" onclick="setInvFilter('month')">本月</button>
+          <button class="tbtn date-filter-btn" id="inv-f-custom" onclick="setInvFilter('custom')">📅 自訂日期</button>
+          <input class="fi" id="inv-custom-date" type="date" style="display:none;max-width:150px;" onchange="onInvCustomDateChange()">
+        </div>
+        <div id="inv-records" style="margin-top:10px;"></div>
+      </div>
+
       <!-- Month-end closing -->
       <div class="set-section">
         <div class="set-title">📅 月結 <span style="font-size:10px;color:var(--muted);font-weight:400;">（自行選擇要結算到哪一天，不限月底）</span></div>
@@ -539,19 +552,6 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
         </div>
         <button class="tbtn" id="mc-toggle-btn" style="width:100%;margin-top:8px;" onclick="toggleMcPreview()">📖 查看本月月結 ▾</button>
         <div id="mc-preview" style="display:none;margin-top:10px;"></div>
-      </div>
-
-      <!-- Stock correction: 入口卡片，點擊才展開內容 -->
-      <div class="set-section">
-        <div class="set-title">✅ 庫存盤點</div>
-        <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">盤點可更新實際庫存數量</p>
-        <button class="btn-add-form" style="width:100%;" onclick="openModal('modal-stockfix')">開始盤點</button>
-      </div>
-
-      <!-- Low stock reminder -->
-      <div class="set-section">
-        <div class="set-title">🔔 低庫存提醒</div>
-        <div id="inv-low-stock"></div>
       </div>
 
     </div>
@@ -916,7 +916,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-11)';
+const APP_VERSION='v40 (hangrou-v40-13)';
 const APP_BUILD_DATE='2026-08-03';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -1120,7 +1120,7 @@ function previewRecalibrateAvgCosts(){
     if(Math.abs(cur-fixed)>=0.01){ diffs.push({name, cur, fixed}); }
   });
   if(!diffs.length){ showToast('✅ 檢查完成，目前所有品項的平均成本都是正確的，不需要校正','ok'); return; }
-  const lines=diffs.slice(0,10).map(d=>`${d.name}：${fmtMoney(d.cur)} → ${fmtMoney(d.fixed)}`).join('\n');
+  const lines=diffs.slice(0,10).map(d=>`${d.name}：${fmtCost(d.cur)} → ${fmtCost(d.fixed)}`).join('\n');
   const more=diffs.length>10?`\n…等共 ${diffs.length} 項（列表僅顯示前 10 項，確定後會全部套用）`:'';
   showConfirm('發現平均成本不一致，是否校正？',
     `以下品項「目前平均成本」跟「用全部進貨紀錄重算出來的正確數字」不一樣（可能是舊版本 bug 造成的殘留）：\n\n${lines}${more}\n\n確定要套用「校正後」的數字嗎？此動作只會改平均成本，不會動到庫存數量、進貨/銷售紀錄，可放心執行。`,
@@ -1144,6 +1144,17 @@ function fmtMoney(n){
   n=Math.round(Number(n)||0);
   const neg=n<0; n=Math.abs(n);
   return (neg?'-$':'$')+n.toLocaleString('en-US');
+}
+// 平均成本專用格式：保留到小數點第2位，不四捨五入到整數。
+// 平均成本是「加權平均」算出來的，本來就常常帶小數；如果顯示時也四捨五入成整數，
+// 常常會出現「畫面上看起來數字沒變，但其實有變、只是被藏起來」的情況
+// （進貨/刪除進貨時混合出來的小數差距，乘上銷售數量後，就會變成看不出原因的毛利差異）。
+function fmtCost(n){
+  n=Number(n)||0;
+  const neg=n<0; n=Math.abs(n);
+  n=Math.round(n*100)/100;
+  const s=n.toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1');
+  return (neg?'-$':'$')+s;
 }
 
 // cart: array of {menuId, rows:[{spice,pepper,sauce,itemDisc}]}
@@ -2735,6 +2746,29 @@ function computeBalanceAfterMap(){
   return balanceAfter;
 }
 
+// 依日期／建立順序重播所有庫存異動，取得每一筆紀錄「異動後」的庫存金額（數量×當時平均成本）。
+// 平均成本只有「進貨」會改變（跟 adjustStock 用同一套加權平均邏輯），庫存修正只影響數量。
+function computeValueAfterMap(){
+  stockRecords=LS.get('stockRecords')||[];
+  const chronological=[...stockRecords].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:(a.id-b.id));
+  const valueAfter={};
+  const running={};
+  chronological.forEach(r=>{
+    if(!running[r.itemName]) running[r.itemName]={qty:0,avgCost:0};
+    const s=running[r.itemName];
+    if(r.type==='in' && r.qty>0){
+      const newQty=s.qty+r.qty;
+      s.avgCost = s.qty>0 ? (((s.qty*s.avgCost)+(r.qty*r.cost))/newQty) : r.cost;
+      s.avgCost = Math.round(s.avgCost*100)/100;
+      s.qty=newQty;
+    } else {
+      s.qty+=r.qty;
+    }
+    valueAfter[r.id]=Math.round(s.qty*s.avgCost*100)/100;
+  });
+  return valueAfter;
+}
+
 // ══════════════════════════════════════════════════
 // 庫存異動｜編輯（可修改：日期／數量／單價（如有）／備註）
 // 已月結期間不可修改，需先解除月結。修改後立即重新計算目前庫存／平均進價／
@@ -2931,7 +2965,7 @@ function renderInventory(){
       <td style="font-family:'DM Mono',monospace;">${purchaseQty}</td>
       <td style="font-family:'DM Mono',monospace;color:var(--red);">${sold}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:700;color:${remaining<0?'var(--red)':remaining===0?'var(--red)':(minStock>0&&remaining<=minStock)?'var(--warn)':'var(--green)'};">${remaining}</td>
-      <td style="font-family:'DM Mono',monospace;">${fmtMoney(avgCost)}</td>
+      <td style="font-family:'DM Mono',monospace;">${fmtCost(avgCost)}</td>
       <td style="font-family:'DM Mono',monospace;">${fmtMoney(stockValue)}</td>
       <td style="font-family:'DM Mono',monospace;">${fmtMoney(sellPrice)}</td>
       <td class="${profitPerUnit>=0?'inv-profit-pos':'inv-profit-neg'}">${fmtMoney(profitPerUnit)}／串</td>
@@ -3088,6 +3122,7 @@ function submitStockCorrection(){
   const fixReasonEl=document.getElementById('fix-reason'); if(fixReasonEl) fixReasonEl.value='';
   const fixNewEl=document.getElementById('fix-new'); if(fixNewEl) fixNewEl.value='';
 
+  closeModal('modal-stockfix');
   renderInventory(); // refreshes 目前庫存／庫存異動／庫存金額／月結預覽 together
   showToast(`✅ 已將「${m.name}」庫存修正為 ${newQty}`,'ok');
 }
@@ -3125,7 +3160,7 @@ function validateStockHealth(){
     if(st.qty<0){
       issues.push({name, type:'negative', label:'負庫存／超賣', detail:`目前庫存為 ${st.qty}（賣出數量超過實際進貨），請先盤點或更正進貨補上正確數量`});
     } else if(st.qty>0 && (!st.avgCost || st.avgCost<=0)){
-      issues.push({name, type:'nocost', label:'沒有成本', detail:`目前庫存 ${st.qty} 串，但平均成本為 ${fmtMoney(st.avgCost||0)}，請確認這個品項的進貨記錄是否有登打進價`});
+      issues.push({name, type:'nocost', label:'沒有成本', detail:`目前庫存 ${st.qty} 串，但平均成本為 ${fmtCost(st.avgCost||0)}，請確認這個品項的進貨記錄是否有登打進價`});
     } else if(st.qty>0 && st.avgCost>0 && !isFinite(st.qty*st.avgCost)){
       issues.push({name, type:'abnormal', label:'異常庫存金額', detail:`庫存金額計算異常，請檢查進貨與盤點紀錄`});
     }
@@ -3224,7 +3259,7 @@ function renderMonthClosePreview(){
         <td style="font-weight:700;">${it.name}</td>
         <td style="font-family:'DM Mono',monospace;">${it.soldQty||0}</td>
         <td style="font-family:'DM Mono',monospace;">${it.endQty}</td>
-        <td style="font-family:'DM Mono',monospace;">${fmtMoney(it.avgCost)}</td>
+        <td style="font-family:'DM Mono',monospace;">${fmtCost(it.avgCost)}</td>
         <td style="font-family:'DM Mono',monospace;">${fmtMoney(it.endValue)}</td>
       </tr>`).join(''):'<tr><td colspan="5" class="no-data">尚無庫存資料</td></tr>'}</tbody>
     </table></div>
@@ -3344,7 +3379,7 @@ function renderMonthClose(){
               <td style="font-weight:700;">${it.name}</td>
               <td style="font-family:'DM Mono',monospace;">${it.soldQty||0}</td>
               <td style="font-family:'DM Mono',monospace;">${it.endQty}</td>
-              <td style="font-family:'DM Mono',monospace;">${fmtMoney(it.avgCost)}</td>
+              <td style="font-family:'DM Mono',monospace;">${fmtCost(it.avgCost)}</td>
               <td style="font-family:'DM Mono',monospace;">${fmtMoney(it.endValue)}</td>
             </tr>`).join('')}</tbody>
           </table></div>
@@ -3397,6 +3432,7 @@ function renderInvRecords(){
   // 疊加更正紀錄——這樣重播出來的總和自然會跟真正的庫存帳本(stockState)一致。
   // （不含銷售——銷售請見「報表」；這裡只反映進貨與庫存修正兩種異動）
   const balanceAfter=computeBalanceAfterMap();
+  const valueAfter=computeValueAfterMap();
 
   // 日期篩選：今日｜本週｜本月｜自訂日期
   let rangeStart, rangeEnd, title;
@@ -3434,12 +3470,14 @@ function renderInvRecords(){
         <td style="font-weight:700;">${r.itemName}</td>
         <td>${isAdjust?'<span class="inv-rec-type-adj">庫存修正</span>':'<span class="inv-rec-type-in">進貨</span>'}</td>
         <td style="font-family:'DM Mono',monospace;">${r.qty>0?'+':''}${r.qty}</td>
+        <td style="font-family:'DM Mono',monospace;">${fmtMoney(r.qty*(r.cost||0))}</td>
         <td style="font-family:'DM Mono',monospace;">${balanceAfter[r.id]}</td>
+        <td style="font-family:'DM Mono',monospace;">${fmtMoney(valueAfter[r.id]||0)}</td>
         <td style="font-size:11px;color:var(--muted);">${note}</td>
         <td style="white-space:nowrap;" onclick="event.stopPropagation();">${actionHtml}</td>
       </tr>
       <tr id="${key}" style="display:none;">
-        <td colspan="7" style="background:var(--surface2);padding:10px 12px;">
+        <td colspan="9" style="background:var(--surface2);padding:10px 12px;">
           ${!isAdjust?`<div class="od-row"><span>進價／串</span><span>${fmtMoney(r.cost)}</span></div>
           <div class="od-row"><span>小計成本</span><span>${fmtMoney(r.qty*r.cost)}</span></div>`:'<div style="font-size:11px;color:var(--muted);">庫存修正不計入進貨成本、不影響營業額與平均成本</div>'}
         </td>
@@ -3450,7 +3488,7 @@ function renderInvRecords(){
     (filtered.length?`
     <div style="overflow-x:auto;">
     <table class="inv-table">
-      <thead><tr><th>日期</th><th>商品</th><th>類型</th><th>異動數量</th><th>異動後庫存</th><th>備註</th><th>操作</th></tr></thead>
+      <thead><tr><th>日期</th><th>商品</th><th>類型</th><th>異動數量</th><th>異動金額</th><th>異動後庫存</th><th>異動後金額</th><th>備註</th><th>操作</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table></div>`
     :'<div class="no-data">此範圍內無庫存異動記錄</div>');
