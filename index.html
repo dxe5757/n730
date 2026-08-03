@@ -916,8 +916,8 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40';
-const APP_BUILD_DATE='2026-07-30';
+const APP_VERSION='v40 (hangrou-v40-9)';
+const APP_BUILD_DATE='2026-08-03';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
 // migrate legacy menu items: ensure active/minStock fields exist (never drop existing items/data)
@@ -1056,10 +1056,14 @@ function adjustStock(name, deltaQty, unitCost){
 function getStock(name){ stockState=LS.get('stockState')||stockState; return stockState[name]||{qty:0,avgCost:0}; }
 
 // 純計算（不寫入）：依日期／建立順序重播某品項「全部進貨紀錄」，算出正確的平均成本。
+// 如果這個品項完全找不到任何進貨紀錄可以依據，回傳 null——代表現有的平均成本不是（單純）從
+// 進貨紀錄算出來的（例如「開始正式營業」時選擇保留平均成本，但進貨紀錄本身已被清空），
+// 這種情況下沒有足夠依據可以重算，呼叫端必須直接跳過、不能把它當成「應該是 0」而覆蓋掉。
 function computeReconciledAvgCost(name){
   stockRecords=LS.get('stockRecords')||[];
   const inRecs=stockRecords.filter(r=>r.type==='in' && r.itemName===name)
     .sort((a,b)=> a.date===b.date ? a.id-b.id : (a.date<b.date?-1:1));
+  if(!inRecs.length) return null;
   let qty=0, avgCost=0;
   inRecs.forEach(r=>{
     const newQty=qty+r.qty;
@@ -1071,6 +1075,7 @@ function computeReconciledAvgCost(name){
 }
 function reconcileAvgCostFromPurchases(name){
   const avgCost=computeReconciledAvgCost(name);
+  if(avgCost===null) return; // 沒有進貨紀錄可以依據，不動它，避免把有效的平均成本洗成 0
   stockState=LS.get('stockState')||stockState;
   const s=ensureStockItem(name);
   s.avgCost=avgCost;
@@ -1083,19 +1088,21 @@ function reconcileAvgCostFromPurchases(name){
 
 // 設定頁「重新校正平均成本」：檢查每個品項「目前平均成本」跟「用全部進貨紀錄重算出來的正確平均成本」
 // 是否對得起來，把對不起來的品項列出來給使用者確認，按下確認才會真的套用（不會默默自動修改）。
+// 找不到進貨紀錄可依據的品項一律跳過，不列入清單，避免誤把合法保留下來的成本洗成 0。
 function previewRecalibrateAvgCosts(){
   MENU=LS.get('menu')||MENU;
   stockState=LS.get('stockState')||stockState;
   const allNames=new Set([...Object.keys(stockState||{}), ...MENU.map(m=>m.name)]);
   const diffs=[];
   allNames.forEach(name=>{
-    const cur=getStock(name).avgCost||0;
     const fixed=computeReconciledAvgCost(name);
+    if(fixed===null) return; // 沒有進貨紀錄可依據，跳過
+    const cur=getStock(name).avgCost||0;
     if(Math.abs(cur-fixed)>=0.01){ diffs.push({name, cur, fixed}); }
   });
   if(!diffs.length){ showToast('✅ 檢查完成，目前所有品項的平均成本都是正確的，不需要校正','ok'); return; }
-  const lines=diffs.slice(0,15).map(d=>`${d.name}：${fmtMoney(d.cur)} → ${fmtMoney(d.fixed)}`).join('\n');
-  const more=diffs.length>15?`\n…等共 ${diffs.length} 項`:'';
+  const lines=diffs.slice(0,10).map(d=>`${d.name}：${fmtMoney(d.cur)} → ${fmtMoney(d.fixed)}`).join('\n');
+  const more=diffs.length>10?`\n…等共 ${diffs.length} 項（列表僅顯示前 10 項，確定後會全部套用）`:'';
   showConfirm('發現平均成本不一致，是否校正？',
     `以下品項「目前平均成本」跟「用全部進貨紀錄重算出來的正確數字」不一樣（可能是舊版本 bug 造成的殘留）：\n\n${lines}${more}\n\n確定要套用「校正後」的數字嗎？此動作只會改平均成本，不會動到庫存數量、進貨/銷售紀錄，可放心執行。`,
     ()=>applyRecalibrateAvgCosts(diffs));
