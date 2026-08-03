@@ -987,7 +987,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-15)';
+const APP_VERSION='v40 (hangrou-v40-16)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -3453,10 +3453,26 @@ function getCurrentPeriodStart(){
   monthCloses=LS.get('monthCloses')||monthCloses;
   firstShiftDate=LS.get('firstShiftDate')||firstShiftDate;
   const lockedCloses=monthCloses.filter(c=>c.locked && c.closeDate);
-  if(!lockedCloses.length) return firstShiftDate || bizDay || todayStr(); // 從未月結過：本期就是從第一次開班那天開始
-  const maxClose=lockedCloses.reduce((mx,c)=> c.closeDate>mx?c.closeDate:mx, lockedCloses[0].closeDate);
-  const d=new Date(maxClose+'T00:00:00'); d.setDate(d.getDate()+1);
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(lockedCloses.length){
+    const maxClose=lockedCloses.reduce((mx,c)=> c.closeDate>mx?c.closeDate:mx, lockedCloses[0].closeDate);
+    const d=new Date(maxClose+'T00:00:00'); d.setDate(d.getDate()+1);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  // 從未月結過：本期起始日＝「第一次開班日期」。但如果您比正式開班更早就先做過
+  // 「設定期初庫存」（例如先設定好期初數字，隔幾天才第一次按開班），起始日不能比那次
+  // 設定還晚，否則「設定期初庫存之後、正式開班之前」這段期間的進貨／銷售會被誤算成
+  // 「期初」而不是「本期」。所以取「第一次開班日期」跟「最早一次設定期初庫存隔天」
+  // 兩者中比較早的那一個，確保設定期初庫存之後的每一筆異動都能正確算進本期。
+  const base = firstShiftDate || bizDay || todayStr();
+  stockRecords=LS.get('stockRecords')||[];
+  const initDates = stockRecords.filter(r=>r.type==='adjust' && (r.note||'').indexOf('設定期初庫存')===0).map(r=>r.date);
+  if(initDates.length){
+    const earliestInit = initDates.reduce((mn,d)=>d<mn?d:mn, initDates[0]);
+    const d=new Date(earliestInit+'T00:00:00'); d.setDate(d.getDate()+1);
+    const dayAfter=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    return dayAfter<base ? dayAfter : base;
+  }
+  return base;
 }
 
 // 月結前檢查：負庫存／超賣、沒有成本的品項、異常庫存金額。
