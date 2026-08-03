@@ -661,6 +661,13 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
           <button class="btn-danger" style="width:100%;margin-top:auto;" onclick="openModal('modal-startbiz')">開始營業</button>
         </div>
 
+        <div class="hub-card">
+          <div class="hub-card-icon">🧮</div>
+          <div class="hub-card-title">重新校正平均成本</div>
+          <div class="hub-card-desc">用各品項全部進貨紀錄重算一次平均成本，修正舊版曾經算錯、卡住沒回復的數字</div>
+          <button class="tbtn" style="width:100%;margin-top:auto;" onclick="previewRecalibrateAvgCosts()">檢查並校正</button>
+        </div>
+
         <div class="hub-card" onclick="setSettingsView('menu')">
           <div class="hub-card-icon">🍽️</div>
           <div class="hub-card-title">品項管理</div>
@@ -1047,6 +1054,58 @@ function adjustStock(name, deltaQty, unitCost){
   return {...s};
 }
 function getStock(name){ stockState=LS.get('stockState')||stockState; return stockState[name]||{qty:0,avgCost:0}; }
+
+// 純計算（不寫入）：依日期／建立順序重播某品項「全部進貨紀錄」，算出正確的平均成本。
+function computeReconciledAvgCost(name){
+  stockRecords=LS.get('stockRecords')||[];
+  const inRecs=stockRecords.filter(r=>r.type==='in' && r.itemName===name)
+    .sort((a,b)=> a.date===b.date ? a.id-b.id : (a.date<b.date?-1:1));
+  let qty=0, avgCost=0;
+  inRecs.forEach(r=>{
+    const newQty=qty+r.qty;
+    avgCost = qty>0 ? (((qty*avgCost)+(r.qty*r.cost))/newQty) : r.cost;
+    avgCost = Math.round(avgCost*100)/100;
+    qty=newQty;
+  });
+  return avgCost;
+}
+function reconcileAvgCostFromPurchases(name){
+  const avgCost=computeReconciledAvgCost(name);
+  stockState=LS.get('stockState')||stockState;
+  const s=ensureStockItem(name);
+  s.avgCost=avgCost;
+  stockState[name]=s;
+  const ok=LS.set('stockState',stockState);
+  if(!ok && typeof showToast==='function'){
+    showToast('⚠️ 庫存寫入失敗，請重新整理頁面後再試一次','err');
+  }
+}
+
+// 設定頁「重新校正平均成本」：檢查每個品項「目前平均成本」跟「用全部進貨紀錄重算出來的正確平均成本」
+// 是否對得起來，把對不起來的品項列出來給使用者確認，按下確認才會真的套用（不會默默自動修改）。
+function previewRecalibrateAvgCosts(){
+  MENU=LS.get('menu')||MENU;
+  stockState=LS.get('stockState')||stockState;
+  const allNames=new Set([...Object.keys(stockState||{}), ...MENU.map(m=>m.name)]);
+  const diffs=[];
+  allNames.forEach(name=>{
+    const cur=getStock(name).avgCost||0;
+    const fixed=computeReconciledAvgCost(name);
+    if(Math.abs(cur-fixed)>=0.01){ diffs.push({name, cur, fixed}); }
+  });
+  if(!diffs.length){ showToast('✅ 檢查完成，目前所有品項的平均成本都是正確的，不需要校正','ok'); return; }
+  const lines=diffs.slice(0,15).map(d=>`${d.name}：${fmtMoney(d.cur)} → ${fmtMoney(d.fixed)}`).join('\n');
+  const more=diffs.length>15?`\n…等共 ${diffs.length} 項`:'';
+  showConfirm('發現平均成本不一致，是否校正？',
+    `以下品項「目前平均成本」跟「用全部進貨紀錄重算出來的正確數字」不一樣（可能是舊版本 bug 造成的殘留）：\n\n${lines}${more}\n\n確定要套用「校正後」的數字嗎？此動作只會改平均成本，不會動到庫存數量、進貨/銷售紀錄，可放心執行。`,
+    ()=>applyRecalibrateAvgCosts(diffs));
+}
+function applyRecalibrateAvgCosts(diffs){
+  diffs.forEach(d=> reconcileAvgCostFromPurchases(d.name));
+  renderInventory();
+  showToast(`✅ 已校正 ${diffs.length} 個品項的平均成本`,'ok');
+}
+
 
 // ── Display formatters (data itself always stays in YYYY-MM-DD / raw number internally) ──
 function dispDate(v){
@@ -2547,12 +2606,10 @@ function editPurchaseRecord(id, newQtyStr, newCostStr, newDate){
   const deltaQty=newQty-r.qty;
   if(deltaQty!==0){
     adjustStock(r.itemName, deltaQty, deltaQty>0?newCost:null);
-  } else if(newCost!==r.cost){
-    adjustStock(r.itemName, -r.qty, null);
-    adjustStock(r.itemName, r.qty, newCost);
   }
   r.qty=newQty; r.cost=newCost; if(newDate) r.date=newDate;
   LS.set('stockRecords',stockRecords);
+  reconcileAvgCostFromPurchases(r.itemName); // 不管數量或進價怎麼改，平均成本一律用「目前全部進貨紀錄」重新算好、直接覆蓋
   renderInventory();
   showToast('✅ 已更新進貨紀錄','ok');
 }
@@ -2565,9 +2622,10 @@ function deletePurchaseRecord(id){
   showConfirm('確認刪除進貨紀錄',
     `品項：${r.itemName}\n數量：${r.qty} 串／${fmtMoney(r.cost)}\n\n刪除後庫存會回復到這筆進貨之前的狀態，此動作無法復原，確定要刪除嗎？`,
     ()=>{
-      adjustStock(r.itemName, -r.qty, null);
+      adjustStock(r.itemName, -r.qty, null); // 先把數量退回
       stockRecords=stockRecords.filter(x=>x.id!==id);
       LS.set('stockRecords',stockRecords);
+      reconcileAvgCostFromPurchases(r.itemName); // 平均成本用「剩餘進貨紀錄」重新算好、直接寫回
       renderInventory();
       showToast('🗑️ 已刪除進貨紀錄','err');
     });
@@ -2709,9 +2767,6 @@ function submitEditRecord(){
     const deltaQty=newQty-r.qty;
     if(deltaQty!==0){
       adjustStock(r.itemName, deltaQty, deltaQty>0?newCost:null);
-    } else if(newCost!==r.cost){
-      adjustStock(r.itemName, -r.qty, null);
-      adjustStock(r.itemName, r.qty, newCost);
     }
     r.qty=newQty; r.cost=newCost; r.date=newDate; r.note=newNote;
   } else {
@@ -2725,6 +2780,7 @@ function submitEditRecord(){
     r.qty=newDelta; r.date=newDate; r.note=newNote;
   }
   LS.set('stockRecords',stockRecords);
+  if(r.type==='in') reconcileAvgCostFromPurchases(r.itemName); // 進貨紀錄被改動後，平均成本一律用「目前全部進貨紀錄」重新算好、直接覆蓋，避免用增量計算越改越不準
   closeModal('modal-editrec');
   renderInventory(); // 立即重新計算目前庫存／平均進價／庫存金額／毛利／月結預覽
   showToast('✅ 已更新紀錄，庫存與相關統計已重新計算','ok');
