@@ -518,6 +518,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
             <input class="fi" id="inv-date" type="date">
           </div>
           <button class="btn-add-form" style="width:100%;" onclick="addStock()">＋新增進貨</button>
+          <button class="tbtn" style="width:100%;margin-top:8px;" onclick="openModal('modal-multipurchase')">📥 一次新增多筆進貨</button>
         </div>
       </div>
 
@@ -640,6 +641,69 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
   </div>
 </div>
 
+<!-- MULTI-ITEM PURCHASE MODAL -->
+<div class="modal-bg hidden" id="modal-multipurchase">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-head">
+      <span class="modal-title">📥 一次新增多筆進貨</span>
+      <button class="modal-close" onclick="closeModal('modal-multipurchase')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
+        一次填好多個品項的進貨數量／進價，共用同一個進貨日期，按「全部新增」會一次寫入所有有填數量的品項。沒選品項或數量留空的列會自動略過。
+      </p>
+      <div class="form-row" style="align-items:flex-end;">
+        <div class="fg" style="max-width:170px;"><label class="fl">進貨日期</label><input class="fi" id="mp-date" type="date"></div>
+        <div class="fg" style="max-width:150px;">
+          <label class="fl">品項篩選</label>
+          <select class="fs" id="mp-status-filter" onchange="renderMultiPurchaseRows()">
+            <option value="active">啟用商品</option>
+            <option value="inactive">停賣商品</option>
+            <option value="all">全部商品</option>
+          </select>
+        </div>
+      </div>
+      <div id="mp-rows" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;"></div>
+      <button class="tbtn" style="width:100%;margin-top:10px;" onclick="addMultiPurchaseRow()">＋新增一列</button>
+    </div>
+    <div class="modal-foot">
+      <button class="tbtn" style="flex:1" onclick="closeModal('modal-multipurchase')">取消</button>
+      <button class="btn-add-form" style="flex:2;" onclick="submitMultiPurchase()">✅ 全部新增</button>
+    </div>
+  </div>
+</div>
+
+<!-- SET OPENING STOCK MODAL（設定期初庫存：本質是一次對「全部品項」做庫存盤點修正） -->
+<div class="modal-bg hidden" id="modal-initstock">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <span class="modal-title">📦 設定期初庫存</span>
+      <button class="modal-close" onclick="closeModal('modal-initstock')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
+        輸入每項商品「現在實際盤點到的庫存數量」與「成本價」，系統會依您輸入的數字自動產生庫存修正紀錄，把系統庫存與平均成本校正成您輸入的數字（事後可在庫存異動查到）。<b style="color:var(--red);">只要填了實際庫存，就一定要同時填成本價</b>，否則庫存金額／毛利會算不準。只有實際填寫的品項才會產生紀錄。
+      </p>
+      <div class="form-row" style="align-items:flex-end;">
+        <div class="fg" style="max-width:170px;"><label class="fl">校正日期</label><input class="fi" id="initstock-date" type="date"></div>
+        <div class="fg" style="max-width:150px;">
+          <label class="fl">品項篩選</label>
+          <select class="fs" id="initstock-status-filter" onchange="renderInitStockForm()">
+            <option value="active">啟用商品</option>
+            <option value="inactive">停賣商品</option>
+            <option value="all">全部商品</option>
+          </select>
+        </div>
+      </div>
+      <div id="initstock-list" style="margin-top:10px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="tbtn" style="flex:1" onclick="closeModal('modal-initstock')">取消</button>
+      <button class="btn-add-form" style="flex:2;" onclick="submitInitStock()">✅ 套用</button>
+    </div>
+  </div>
+</div>
+
 <!-- SETTINGS VIEW -->
 <div class="panel" id="view-settings">
 
@@ -666,6 +730,13 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
           <div class="hub-card-title">重新校正平均成本</div>
           <div class="hub-card-desc">用各品項全部進貨紀錄重算一次平均成本，修正舊版曾經算錯、卡住沒回復的數字</div>
           <button class="tbtn" style="width:100%;margin-top:auto;" onclick="previewRecalibrateAvgCosts()">檢查並校正</button>
+        </div>
+
+        <div class="hub-card">
+          <div class="hub-card-icon">📦</div>
+          <div class="hub-card-title">設定期初庫存</div>
+          <div class="hub-card-desc">直接輸入各品項目前實際庫存數量，一次校正系統庫存帳本</div>
+          <button class="btn-add-form" style="width:100%;margin-top:auto;" onclick="openModal('modal-initstock')">設定庫存</button>
         </div>
 
         <div class="hub-card" onclick="setSettingsView('menu')">
@@ -2945,11 +3016,15 @@ function renderInventory(){
 
   const summaryRows=[...names].sort().map(name=>{
     const st=getStock(name);
-    const beginQty=beginItemsMap[name]?.qty||0;
     const sold=soldMap[name]||0;
     const purchaseQty=purchaseMap[name]||0;
     const adjustQty=adjustMap[name]||0;
     const remaining=st.qty;
+    // 期初庫存：用「目前庫存」反推回本期開始時的庫存（剩餘－本期進貨＋本期銷售－盤盈盤損），
+    // 不能只靠「上一次月結」的快照——店家還沒做過月結時快照不存在，直接顯示0會跟
+    // 「開始正式營業」時保留下來的真實庫存對不起來，變成「進貨0卻能賣」的矛盾畫面。
+    // 用反推公式可以保證這欄永遠跟本期進貨／銷售／盤盈盤損／剩餘庫存互相一致。
+    const beginQty=remaining-purchaseQty+sold-adjustQty;
     const avgCost=st.avgCost||0;
     const stockValue=Math.round(remaining*avgCost*100)/100;
     const sellPrice=sellPriceMap[name]||0;
@@ -2976,7 +3051,6 @@ function renderInventory(){
   });
 
   // totals row
-  const totalBegin=[...names].reduce((s,n)=>s+(beginItemsMap[n]?.qty||0),0);
   const totalIn=[...names].reduce((s,n)=>s+(purchaseMap[n]||0),0);
   const totalSold=[...names].reduce((s,n)=>s+(soldMap[n]||0),0);
   const totalRemaining=[...names].reduce((s,n)=>s+getStock(n).qty,0);
@@ -2985,6 +3059,8 @@ function renderInventory(){
   const totalProfit=totalRevEst-[...names].reduce((s,n)=>s+(soldMap[n]||0)*(getStock(n).avgCost||0),0);
   const totalRate=totalRevEst>0?Math.round(totalProfit/totalRevEst*100):0;
   const totalAdjust=[...names].reduce((s,n)=>s+(adjustMap[n]||0),0);
+  // 跟每一列同一套反推公式，確保合計列也永遠對得起來
+  const totalBegin=totalRemaining-totalIn+totalSold-totalAdjust;
 
   // 庫存總覽卡片：沿用月結頁已經在用的 computePeriodTotals()，數字跟月結預覽/月結紀錄一致，不是另外算一套
   const periodTotals=computePeriodTotals(periodStart, periodEnd);
@@ -3125,6 +3201,182 @@ function submitStockCorrection(){
   closeModal('modal-stockfix');
   renderInventory(); // refreshes 目前庫存／庫存異動／庫存金額／月結預覽 together
   showToast(`✅ 已將「${m.name}」庫存修正為 ${newQty}`,'ok');
+}
+
+// ══════════════════════════════════════════════════
+// MULTI-ITEM PURCHASE（一次新增多筆進貨）
+// 跟單筆「新增進貨」共用同一套寫入邏輯（stockRecords type:'in' + adjustStock），
+// 只是一次可以填好幾個品項再一起送出，避免要一個一個切換品項重複點按。
+// ══════════════════════════════════════════════════
+let mpRowId=0;
+function mpItemOptionsHtml(){
+  MENU=LS.get('menu')||MENU;
+  const statusFilter=document.getElementById('mp-status-filter')?.value||'active';
+  const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
+    : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
+    : MENU;
+  return list.length ? list.map(m=>`<option value="${m.id}">${m.name}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
+}
+function renderMultiPurchaseRows(){
+  const dEl=document.getElementById('mp-date');
+  if(dEl && !dEl.value) dEl.value=todayStr();
+  const rowsEl=document.getElementById('mp-rows');
+  if(!rowsEl) return;
+  rowsEl.innerHTML='';
+  mpRowId=0;
+  addMultiPurchaseRow();
+  addMultiPurchaseRow();
+}
+function addMultiPurchaseRow(){
+  const rowsEl=document.getElementById('mp-rows');
+  if(!rowsEl) return;
+  const id=mpRowId++;
+  const div=document.createElement('div');
+  div.className='form-row';
+  div.id='mp-row-'+id;
+  div.style.cssText='align-items:flex-end;gap:6px;';
+  div.innerHTML=`
+    <div class="fg" style="flex:1 1 110px;min-width:90px;"><label class="fl">品項</label><select class="fs mp-item-sel" id="mp-item-${id}">${mpItemOptionsHtml()}</select></div>
+    <div class="fg" style="flex:0 0 74px;"><label class="fl">數量</label><input class="fi mp-qty-inp" id="mp-qty-${id}" type="number" placeholder="0" min="1"></div>
+    <div class="fg" style="flex:0 0 84px;"><label class="fl">進價</label><input class="fi mp-cost-inp" id="mp-cost-${id}" type="number" placeholder="0" min="0"></div>
+    <button class="tbtn" style="flex:0 0 36px;padding:8px 0;" onclick="removeMultiPurchaseRow(${id})">✕</button>`;
+  rowsEl.appendChild(div);
+}
+function removeMultiPurchaseRow(id){
+  const el=document.getElementById('mp-row-'+id);
+  if(el) el.remove();
+}
+function submitMultiPurchase(){
+  MENU=LS.get('menu')||MENU;
+  const date=document.getElementById('mp-date')?.value || todayStr();
+  if(!date){ showToast('請選擇日期','err'); return; }
+  if(isDateLocked(date)){ showToast('此日期已月結封存，不可新增進貨記錄，請選擇月結之後的日期','err'); return; }
+
+  const rows=[...document.querySelectorAll('#mp-rows .form-row')];
+  stockRecords=LS.get('stockRecords')||[];
+  let count=0;
+  rows.forEach(row=>{
+    const sel=row.querySelector('.mp-item-sel');
+    const qtyEl=row.querySelector('.mp-qty-inp');
+    const costEl=row.querySelector('.mp-cost-inp');
+    const menuId=parseInt(sel?.value);
+    const qty=parseInt(qtyEl?.value)||0;
+    const cost=parseFloat(costEl?.value)||0;
+    if(!menuId || qty<=0) return; // 沒選品項或沒填數量的列直接略過，不當成錯誤
+    const m=MENU.find(x=>x.id===menuId);
+    if(!m) return;
+    stockRecords.push({id:stockNid++,date,menuId,itemName:m.name,qty,cost,sellPrice:m.price,type:'in'});
+    adjustStock(m.name, qty, cost);
+    count++;
+  });
+
+  if(count===0){ showToast('沒有填寫任何有效的進貨資料（品項與數量必填）','err'); return; }
+  LS.set('stockRecords',stockRecords);
+  LS.set('stockNid',stockNid);
+
+  closeModal('modal-multipurchase');
+  renderInventory();
+  showToast(`✅ 已一次新增 ${count} 筆進貨記錄`,'ok');
+}
+
+// ══════════════════════════════════════════════════
+// SET OPENING STOCK（設定期初庫存）
+// 本質上是「對全部品項一次做庫存盤點」：輸入實際數量後，逐一比對目前系統庫存，
+// 差額用跟「庫存盤點」完全相同的機制（stockRecords type:'adjust' + adjustStock）寫入，
+// 不會另外繞過統一庫存帳本，事後在「庫存異動」都查得到。
+// ══════════════════════════════════════════════════
+function renderInitStockForm(){
+  MENU=LS.get('menu')||MENU;
+  const dEl=document.getElementById('initstock-date');
+  if(dEl && !dEl.value) dEl.value=todayStr();
+  const statusFilter=document.getElementById('initstock-status-filter')?.value||'active';
+  const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
+    : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
+    : MENU;
+  const listEl=document.getElementById('initstock-list');
+  if(!listEl) return;
+  listEl.innerHTML = list.length ? `
+    <div style="max-height:360px;overflow-y:auto;">
+    <table class="inv-table">
+      <thead><tr><th>品項</th><th>目前庫存</th><th>目前成本</th><th>實際庫存</th><th>成本價</th></tr></thead>
+      <tbody>
+      ${list.map(m=>{
+        const st=getStock(m.name);
+        return `<tr>
+          <td style="font-weight:700;">${m.name}</td>
+          <td style="font-family:'DM Mono',monospace;color:var(--muted);">${st.qty}</td>
+          <td style="font-family:'DM Mono',monospace;color:var(--muted);">${fmtCost(st.avgCost||0)}</td>
+          <td><input class="fi initstock-inp" data-menu-id="${m.id}" data-name="${m.name.replace(/"/g,'&quot;')}" type="number" placeholder="${st.qty}" style="width:76px;padding:4px 8px;"></td>
+          <td><input class="fi initstock-cost-inp" data-name="${m.name.replace(/"/g,'&quot;')}" type="number" placeholder="${st.avgCost||0}" style="width:76px;padding:4px 8px;"></td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+    </div>` : '<div class="no-data">此篩選條件下沒有品項</div>';
+}
+function submitInitStock(){
+  MENU=LS.get('menu')||MENU;
+  const date=document.getElementById('initstock-date')?.value || todayStr();
+  if(isDateLocked(date)){ showToast('此日期已月結封存，不可新增庫存修正，請選擇月結之後的日期','err'); return; }
+
+  const inputs=[...document.querySelectorAll('.initstock-inp')];
+
+  // 第一輪：先驗證——只要填了實際庫存，成本價就一定要填，缺一個都先擋下來，不寫入任何一筆
+  const missingCost=[];
+  const rows=inputs.map(inp=>{
+    const name=inp.dataset.name;
+    const menuId=parseInt(inp.dataset.menuId);
+    const costInp=document.querySelector(`.initstock-cost-inp[data-name="${CSS.escape(name)}"]`);
+    const costStr=costInp?.value;
+    const hasCost = costStr!==''&&costStr!=null&&!isNaN(parseFloat(costStr));
+    const newCost = hasCost ? Math.round(parseFloat(costStr)*100)/100 : null;
+
+    const v=inp.value;
+    const hasQty = v!==''&&v!=null&&!isNaN(parseInt(v));
+    const newQty = hasQty ? parseInt(v) : null;
+
+    if(hasQty && !hasCost) missingCost.push(name);
+    return {name,menuId,hasQty,newQty,hasCost,newCost};
+  });
+  if(missingCost.length){
+    showToast(`請填寫成本價才能設定：${missingCost.join('、')}`,'err');
+    return;
+  }
+
+  stockRecords=LS.get('stockRecords')||[];
+  let count=0;
+  rows.forEach(({name,menuId,hasQty,newQty,hasCost,newCost})=>{
+    const m=MENU.find(x=>x.id===menuId);
+    const current=getStock(name).qty;
+    const diff = hasQty ? (newQty-current) : 0;
+
+    if(!hasQty && !hasCost) return; // 這個品項數量與成本都沒填，完全跳過
+    if(diff===0 && hasCost){
+      // 數量沒變（或沒填），只單獨校正平均成本
+      const curCost=getStock(name).avgCost||0;
+      if(newCost===curCost) return; // 成本也沒變，不產生紀錄
+      stockState=LS.get('stockState')||stockState;
+      const s=ensureStockItem(name);
+      s.avgCost=newCost;
+      stockState[name]=s;
+      LS.set('stockState',stockState);
+      stockRecords.push({id:stockNid++,date,menuId,itemName:name,qty:0,cost:newCost,sellPrice:m?m.price:0,type:'adjust',note:'設定期初庫存（僅校正成本）'});
+      count++;
+      return;
+    }
+    // 數量有變：一定會有成本價（已在上面驗證過），用成本重新計算平均成本，跟進貨同一套邏輯
+    adjustStock(name, diff, newCost);
+    stockRecords.push({id:stockNid++,date,menuId,itemName:name,qty:diff,cost:getStock(name).avgCost,sellPrice:m?m.price:0,type:'adjust',note:'設定期初庫存'});
+    count++;
+  });
+
+  if(count===0){ showToast('沒有品項的數量或成本被更改，未產生任何紀錄','err'); return; }
+  LS.set('stockRecords',stockRecords);
+  LS.set('stockNid',stockNid);
+
+  closeModal('modal-initstock');
+  renderInventory();
+  showToast(`✅ 已套用 ${count} 項期初庫存設定`,'ok');
 }
 
 // ══════════════════════════════════════════════════
@@ -3523,6 +3775,8 @@ function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
 function openModal(id){
   if(id==='modal-startbiz') renderSettings();
   if(id==='modal-stockfix') renderStockCorrectionForm();
+  if(id==='modal-multipurchase') renderMultiPurchaseRows();
+  if(id==='modal-initstock') renderInitStockForm();
   document.getElementById(id).classList.remove('hidden');
 }
 
