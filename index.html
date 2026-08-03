@@ -2637,18 +2637,25 @@ function initInvSelectors(){
     : MENU;
   sel.innerHTML = list.length ? list.map(m=>`<option value="${m.id}">${m.name}（${fmtMoney(m.price)}）${m.active===false?'（已停賣）':''}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
   if(list.find(m=>m.id===parseInt(prev))) sel.value=prev;
-  // auto-fill 進價 with this item's last purchase cost (falls back to menu price if never purchased before)
+  // auto-fill 進價：優先用這個品項「目前的平均成本」（不管是從進貨紀錄算出來的，
+  // 還是您在「設定期初庫存」直接輸入的，都算），沒有的話才退回抓最近一筆進貨記錄，
+  // 都沒有的話才用售價當預設值。
   sel.onchange = ()=>{
     const m=MENU.find(x=>x.id===parseInt(sel.value));
     if(!m) return;
     const ci=document.getElementById('inv-cost');
     if(ci && !ci.dataset.edited){
-      stockRecords=LS.get('stockRecords')||[];
-      const hist=stockRecords
-        .filter(r=>r.itemName===m.name && r.type!=='adjust')
-        .sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : a.id-b.id);
-      const last=hist[hist.length-1];
-      ci.value = last ? last.cost : m.price;
+      const curAvg=getStock(m.name).avgCost||0;
+      if(curAvg>0){
+        ci.value = curAvg;
+      } else {
+        stockRecords=LS.get('stockRecords')||[];
+        const hist=stockRecords
+          .filter(r=>r.itemName===m.name && r.type!=='adjust')
+          .sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : a.id-b.id);
+        const last=hist[hist.length-1];
+        ci.value = last ? last.cost : m.price;
+      }
     }
   };
   const ci=document.getElementById('inv-cost');
@@ -2980,6 +2987,8 @@ function renderInventory(){
   const purchaseMap=getPeriodPurchaseMap(periodStart, periodEnd);
   const soldMap=getPeriodSalesMap(periodStart, periodEnd);
   const adjustMap=getPeriodAdjustMap(periodStart, periodEnd);
+  // 庫存總覽卡片：沿用月結頁已經在用的 computePeriodTotals()，數字跟月結預覽/月結紀錄一致，不是另外算一套
+  const periodTotals=computePeriodTotals(periodStart, periodEnd);
 
   // 期初庫存（＝上一次月結的期末庫存）：直接沿用月結紀錄裡已經存好的 endItems／endValueTotal，
   // 不是另外重新定義一套算法；從未月結過的話，本期就是從零開始，期初庫存視為 0。
@@ -2990,7 +2999,6 @@ function renderInventory(){
     : null;
   const beginItemsMap={};
   (beginCloseRec?.endItems||[]).forEach(it=>{ beginItemsMap[it.name]={qty:it.endQty, value:it.endValue}; });
-  const beginValueTotal = beginCloseRec?.endValueTotal||0;
 
   const sellPriceMap={};
   stockRecords.forEach(r=>{ sellPriceMap[r.itemName]=r.sellPrice||sellPriceMap[r.itemName]||0; });
@@ -3004,6 +3012,17 @@ function renderInventory(){
   stockState=LS.get('stockState')||stockState;
   const allStockNames=new Set([...names0, ...Object.keys(stockState||{})]);
   const currentStockValueAll=[...allStockNames].reduce((s,n)=>{ const st=getStock(n); return s+Math.round(st.qty*(st.avgCost||0)*100)/100; },0);
+
+  // 期初庫存金額：有月結紀錄就直接結轉上一期的期末庫存金額；
+  // 沒有月結紀錄的話（例如還沒做過月結、但已經用「設定期初庫存」輸入過實際數量與成本），
+  // 用「目前庫存金額」反推回本期開始時的金額（目前金額－本期進貨金額＋本期銷售成本－本期盤點調整金額），
+  // 這樣才會對到您自己設定的期初庫存與成本，不會顯示成$0。
+  const costOfSoldAll=[...allStockNames].reduce((s,n)=>s+(soldMap[n]||0)*(getStock(n).avgCost||0),0);
+  const adjustValueAll=[...allStockNames].reduce((s,n)=>s+(adjustMap[n]||0)*(getStock(n).avgCost||0),0);
+  const beginValueTotal = beginCloseRec
+    ? (beginCloseRec.endValueTotal||0)
+    : Math.round((currentStockValueAll - periodTotals.inAmt + costOfSoldAll - adjustValueAll)*100)/100;
+
   const statusFilter=document.getElementById('inv-status-filter')?.value||'active';
   let names;
   if(statusFilter==='active'){
@@ -3062,8 +3081,7 @@ function renderInventory(){
   // 跟每一列同一套反推公式，確保合計列也永遠對得起來
   const totalBegin=totalRemaining-totalIn+totalSold-totalAdjust;
 
-  // 庫存總覽卡片：沿用月結頁已經在用的 computePeriodTotals()，數字跟月結預覽/月結紀錄一致，不是另外算一套
-  const periodTotals=computePeriodTotals(periodStart, periodEnd);
+  // 庫存總覽卡片：periodTotals 已在函式開頭算好（跟月結預覽/月結紀錄同一套），這裡直接沿用
   const kpiEl=document.getElementById('inv-kpi-cards');
   if(kpiEl){
     kpiEl.innerHTML=`
@@ -3236,11 +3254,25 @@ function addMultiPurchaseRow(){
   div.id='mp-row-'+id;
   div.style.cssText='align-items:flex-end;gap:6px;';
   div.innerHTML=`
-    <div class="fg" style="flex:1 1 110px;min-width:90px;"><label class="fl">品項</label><select class="fs mp-item-sel" id="mp-item-${id}">${mpItemOptionsHtml()}</select></div>
+    <div class="fg" style="flex:1 1 110px;min-width:90px;"><label class="fl">品項</label><select class="fs mp-item-sel" id="mp-item-${id}" onchange="mpAutofillCost(${id})">${mpItemOptionsHtml()}</select></div>
     <div class="fg" style="flex:0 0 74px;"><label class="fl">數量</label><input class="fi mp-qty-inp" id="mp-qty-${id}" type="number" placeholder="0" min="1"></div>
-    <div class="fg" style="flex:0 0 84px;"><label class="fl">進價</label><input class="fi mp-cost-inp" id="mp-cost-${id}" type="number" placeholder="0" min="0"></div>
+    <div class="fg" style="flex:0 0 84px;"><label class="fl">進價</label><input class="fi mp-cost-inp" id="mp-cost-${id}" type="number" placeholder="0" min="0" oninput="this.dataset.edited='1'"></div>
     <button class="tbtn" style="flex:0 0 36px;padding:8px 0;" onclick="removeMultiPurchaseRow(${id})">✕</button>`;
   rowsEl.appendChild(div);
+  mpAutofillCost(id); // 品項下拉一開始就有預設選項，馬上把成本一起帶出來，不用等使用者手動切換一次
+}
+// auto-fill 進價：跟單筆「新增進貨」同一套邏輯——優先用這個品項「目前的平均成本」
+// （不管是從進貨紀錄算出來的，還是您在「設定期初庫存」直接輸入的，都算），
+// 沒有的話才用售價當預設值；使用者手動改過這格之後就不再自動覆蓋。
+function mpAutofillCost(id){
+  MENU=LS.get('menu')||MENU;
+  const sel=document.getElementById('mp-item-'+id);
+  const costEl=document.getElementById('mp-cost-'+id);
+  if(!sel||!costEl||costEl.dataset.edited) return;
+  const m=MENU.find(x=>x.id===parseInt(sel.value));
+  if(!m) return;
+  const curAvg=getStock(m.name).avgCost||0;
+  costEl.value = curAvg>0 ? curAvg : m.price;
 }
 function removeMultiPurchaseRow(id){
   const el=document.getElementById('mp-row-'+id);
