@@ -987,8 +987,8 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-14)';
-const APP_BUILD_DATE='2026-08-03';
+const APP_VERSION='v40 (hangrou-v40-15)';
+const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
 // migrate legacy menu items: ensure active/minStock fields exist (never drop existing items/data)
@@ -1030,6 +1030,9 @@ let businessStartDate = LS.get('businessStartDate') || null;
 let firstShiftDate = LS.get('firstShiftDate') || null; // 第一次開班的日期＝第一個營業期間的起始日
 // 遷移備援：舊版沒有記錄 firstShiftDate，若已經有營業紀錄，從既有資料推斷一個合理的起始日，
 // 避免舊帳號在這次更新後，本期起始日錯誤地掉回不存在的預設日期。
+// 注意：庫存紀錄裡只挑 type==='in'（真正的進貨）當候選日期，'adjust'（庫存修正／設定期初庫存）
+// 不能拿來推斷——它本來就代表「期初的起點」，不是「本期發生的營業活動」，如果被當成候選，
+// 校正日期一旦比實際開班日還早，就會把本期起始日誤判成校正當天，導致期初庫存被錯算成0。
 if(!firstShiftDate){
   const _cd=LS.get('closedDays')||[];
   const _mc=LS.get('monthCloses')||[];
@@ -1037,10 +1040,28 @@ if(!firstShiftDate){
   const candidates=[
     ..._cd.map(d=>d.bizDay),
     ..._mc.map(c=>c.periodStart).filter(d=>d && d!=='2000-01-01'),
-    ..._sr.map(r=>r.date),
+    ..._sr.filter(r=>r.type==='in').map(r=>r.date),
     LS.get('bizday')
   ].filter(Boolean);
   if(candidates.length){ firstShiftDate=candidates.reduce((mn,d)=>d<mn?d:mn, candidates[0]); LS.set('firstShiftDate',firstShiftDate); }
+}
+// 自我修復：如果目前的 firstShiftDate 是舊版邏輯誤把「庫存修正／設定期初庫存」日期
+// 當成候選算出來的（也就是沒有任何真正的關帳／月結／進貨紀錄能佐證這天），
+// 用修正後的邏輯（排除 adjust）重新算一次並自動校正回來，使用者不用手動處理。
+if(firstShiftDate){
+  const _cd2=LS.get('closedDays')||[];
+  const _mc2=LS.get('monthCloses')||[];
+  const _sr2=LS.get('stockRecords')||[];
+  const realCandidates=[
+    ..._cd2.map(d=>d.bizDay),
+    ..._mc2.map(c=>c.periodStart).filter(d=>d && d!=='2000-01-01'),
+    ..._sr2.filter(r=>r.type==='in').map(r=>r.date),
+    LS.get('bizday')
+  ].filter(Boolean);
+  if(realCandidates.length && !realCandidates.includes(firstShiftDate)){
+    const corrected=realCandidates.reduce((mn,d)=>d<mn?d:mn, realCandidates[0]);
+    if(corrected!==firstShiftDate){ firstShiftDate=corrected; LS.set('firstShiftDate',firstShiftDate); }
+  }
 }
 let bizDay   = (()=>{
   const stored = LS.get('bizday');
@@ -2357,7 +2378,13 @@ function handleRestoreFile(input){
       '確認還原備份',
       '目前資料將被覆蓋，是否繼續？',
       ()=>{
+        // firstShiftDate（第一次開班日期＝本期起始日的判斷依據）是特例：
+        // 如果備份檔裡這欄是空的（例如備份是在還沒設定過這個欄位時匯出的），
+        // 不要用空值蓋掉「目前」已經正確存在的值，否則系統會重新用庫存紀錄
+        // 去猜一個起始日，容易猜錯，導致期初庫存跟盤盈/盤損顯示錯誤。
+        const curFirstShift=localStorage.getItem('hr_firstShiftDate');
         Object.entries(payload.data).forEach(([k,v])=>{
+          if(k==='firstShiftDate' && !v && curFirstShift){ return; } // 保留現有正確值
           localStorage.setItem('hr_'+k, JSON.stringify(v));
         });
         showToast('✅ 還原完成，即將重新載入…','ok');
