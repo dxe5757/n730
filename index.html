@@ -347,6 +347,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
 .inv-profit-neg{color:var(--red);font-family:'DM Mono',monospace;font-weight:700;}
 .inv-rec-type-in{color:var(--accent2);font-size:11px;font-weight:700;}
 .inv-rec-type-adj{color:var(--purple);font-size:11px;font-weight:700;}
+.inv-rec-type-waste{color:var(--red);font-size:11px;font-weight:700;}
 .inv-cal-clear{color:var(--accent2);cursor:pointer;font-weight:400;}
 </style>
 </head>
@@ -600,43 +601,97 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
 <div class="modal-bg hidden" id="modal-stockfix">
   <div class="modal" style="max-width:420px;">
     <div class="modal-head">
-      <span class="modal-title">✅ 庫存盤點</span>
+      <span class="modal-title" id="stockfix-modal-title">✅ 庫存盤點</span>
       <button class="modal-close" onclick="closeModal('modal-stockfix')">✕</button>
     </div>
     <div class="modal-body">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-        <select class="fs" id="take-status-filter" style="width:auto;padding:4px 8px;font-size:11px;" onchange="renderStockCorrectionForm()">
-          <option value="active">啟用商品</option>
-          <option value="inactive">停賣商品</option>
-          <option value="all">全部商品</option>
-        </select>
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <button class="tbtn" id="stockfix-tab-btn-correct" style="flex:1;" onclick="switchStockfixTab('correct')">✅ 盤點修正</button>
+        <button class="tbtn" id="stockfix-tab-btn-waste" style="flex:1;" onclick="switchStockfixTab('waste')">🗑️ 食材耗損</button>
       </div>
-      <div class="form-row" style="flex-direction:column;align-items:stretch;">
-        <div class="fg">
-          <label class="fl">商品</label>
-          <select class="fs" id="fix-item-sel" onchange="onFixItemChange()"></select>
+
+      <div id="stockfix-panel-correct">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+          <select class="fs" id="take-status-filter" style="width:auto;padding:4px 8px;font-size:11px;" onchange="renderStockCorrectionForm()">
+            <option value="active">啟用商品</option>
+            <option value="inactive">停賣商品</option>
+            <option value="all">全部商品</option>
+          </select>
         </div>
-        <div class="fg">
-          <label class="fl">目前庫存</label>
-          <input class="fi" id="fix-current" type="text" value="0" disabled style="opacity:.7;">
+        <div class="form-row" style="flex-direction:column;align-items:stretch;">
+          <div class="fg">
+            <label class="fl">商品</label>
+            <select class="fs" id="fix-item-sel" onchange="onFixItemChange()"></select>
+          </div>
+          <div class="fg">
+            <label class="fl">目前庫存</label>
+            <input class="fi" id="fix-current" type="text" value="0" disabled style="opacity:.7;">
+          </div>
+          <div class="fg">
+            <label class="fl">修正後庫存</label>
+            <input class="fi" id="fix-new" type="number" placeholder="0">
+          </div>
+          <div class="fg">
+            <label class="fl">日期</label>
+            <input class="fi" id="fix-date" type="date">
+          </div>
+          <div class="fg">
+            <label class="fl">原因（選填）</label>
+            <input class="fi" id="fix-reason" placeholder="例如：清點誤差…">
+          </div>
         </div>
-        <div class="fg">
-          <label class="fl">修正後庫存</label>
-          <input class="fi" id="fix-new" type="number" placeholder="0">
+      </div>
+
+      <div id="stockfix-panel-waste" style="display:none;">
+        <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
+          食材真的壞掉/過期/烤焦報廢時用這個，跟上面「盤點修正」不一樣：這裡登記的是實際損失掉的數量，會自動用目前平均成本算出耗損金額，不會混進「盤盈/盤損」，會另外顯示在庫存頁上方「本期耗損金額」卡片。
+        </p>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+          <select class="fs" id="waste-status-filter" style="width:auto;padding:4px 8px;font-size:11px;" onchange="renderStockCorrectionForm()">
+            <option value="active">啟用商品</option>
+            <option value="inactive">停賣商品</option>
+            <option value="all">全部商品</option>
+          </select>
         </div>
-        <div class="fg">
-          <label class="fl">日期</label>
-          <input class="fi" id="fix-date" type="date">
-        </div>
-        <div class="fg">
-          <label class="fl">原因（選填）</label>
-          <input class="fi" id="fix-reason" placeholder="例如：破損、盤點誤差…">
+        <div class="form-row" style="flex-direction:column;align-items:stretch;">
+          <div class="fg">
+            <label class="fl">商品</label>
+            <select class="fs" id="waste-item-sel" onchange="onWasteItemChange()"></select>
+          </div>
+          <div class="fg">
+            <label class="fl">目前庫存</label>
+            <input class="fi" id="waste-current" type="text" value="0" disabled style="opacity:.7;">
+          </div>
+          <div class="fg">
+            <label class="fl">耗損數量</label>
+            <input class="fi" id="waste-qty" type="number" placeholder="0" min="1">
+          </div>
+          <div class="fg">
+            <label class="fl">目前平均成本／單價</label>
+            <input class="fi" id="waste-cost-preview" type="text" value="$0" disabled style="opacity:.7;">
+          </div>
+          <div class="fg">
+            <label class="fl">日期</label>
+            <input class="fi" id="waste-date" type="date">
+          </div>
+          <div class="fg">
+            <label class="fl">原因</label>
+            <select class="fs" id="waste-reason-sel" onchange="onWasteReasonChange()">
+              <option value="過期">過期</option>
+              <option value="腐壞變質">腐壞變質</option>
+              <option value="烹調失敗／烤焦">烹調失敗／烤焦</option>
+              <option value="掉落／污染">掉落／污染</option>
+              <option value="客訴報廢">客訴報廢</option>
+              <option value="其他">其他（自行填寫）</option>
+            </select>
+            <input class="fi" id="waste-reason-custom" placeholder="請輸入原因" style="display:none;margin-top:6px;">
+          </div>
         </div>
       </div>
     </div>
     <div class="modal-foot">
       <button class="tbtn" style="flex:1" onclick="closeModal('modal-stockfix')">取消</button>
-      <button class="btn-add-form" style="flex:2;" onclick="submitStockCorrection()">✅ 確認修正</button>
+      <button class="btn-add-form" id="stockfix-submit-btn" style="flex:2;" onclick="submitStockCorrection()">✅ 確認修正</button>
     </div>
   </div>
 </div>
@@ -987,7 +1042,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-16)';
+const APP_VERSION='v40 (hangrou-v40-18)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -2837,6 +2892,24 @@ function deleteStockTake(id){
     });
 }
 
+// 耗損紀錄刪除：跟庫存修正的刪除邏輯一樣（純數量異動，回復庫存即可），
+// 只是類型是 'waste'、訊息文字不同，方便使用者分辨刪的是哪一種紀錄。
+function deleteWasteRecord(id){
+  stockRecords=LS.get('stockRecords')||[];
+  const r=stockRecords.find(x=>x.id===id);
+  if(!r || r.type!=='waste'){ showToast('找不到原始耗損紀錄','err'); return; }
+  if(isMonthLocked(r.date)){ showToast('此月份已月結，不可刪除，請於上方新增一筆新的耗損紀錄','err'); return; }
+  showConfirm('確認刪除耗損紀錄',
+    `品項：${r.itemName}\n耗損數量：${Math.abs(r.qty)}\n耗損金額：${fmtMoney(Math.abs(r.qty)*(r.cost||0))}\n\n刪除後庫存會回復到這筆耗損之前的狀態，此動作無法復原，確定要刪除嗎？`,
+    ()=>{
+      adjustStock(r.itemName, -r.qty, null); // r.qty 本身是負數，取負號＝加回去
+      stockRecords=stockRecords.filter(x=>x.id!==id);
+      LS.set('stockRecords',stockRecords);
+      renderInventory();
+      showToast('🗑️ 已刪除耗損紀錄，庫存已回復','err');
+    });
+}
+
 // 依日期／建立順序重播所有庫存異動，取得每一筆紀錄「異動後」的庫存餘額
 // （renderInvRecords 與編輯視窗共用同一套邏輯，避免兩邊各算一套）
 function computeBalanceAfterMap(){
@@ -2889,7 +2962,9 @@ function openEditRecordModal(id){
 
   _editRecId=id;
   const isAdjust=r.type==='adjust';
-  document.getElementById('editrec-title').textContent = isAdjust ? '✏️ 編輯庫存修正紀錄' : '✏️ 編輯進貨紀錄';
+  const isWaste=r.type==='waste';
+  const isQtyOnly=isAdjust||isWaste; // 庫存修正／耗損都是「純數量異動」，共用同一套「異動後庫存」編輯方式
+  document.getElementById('editrec-title').textContent = isWaste?'✏️ 編輯耗損紀錄':isAdjust?'✏️ 編輯庫存修正紀錄':'✏️ 編輯進貨紀錄';
   document.getElementById('er-itemname').value=r.itemName;
   document.getElementById('er-date').value=r.date;
   document.getElementById('er-note').value=r.note||'';
@@ -2897,9 +2972,9 @@ function openEditRecordModal(id){
   const costWrap=document.getElementById('er-cost-wrap');
   const qtyLabel=document.getElementById('er-qty-label');
   const qtyInput=document.getElementById('er-qty');
-  if(isAdjust){
+  if(isQtyOnly){
     costWrap.style.display='none';
-    qtyLabel.textContent='修正後庫存';
+    qtyLabel.textContent=isWaste?'耗損後庫存':'修正後庫存';
     const balMap=computeBalanceAfterMap();
     const balAfter=balMap[id];
     _editRecBalanceBefore = balAfter - r.qty; // 這筆修正「之前」的庫存，用來把畫面上輸入的「修正後庫存」換算回內部的異動量
@@ -3003,6 +3078,16 @@ function getPeriodAdjustMap(startDate, endDate){
   return map;
 }
 
+// 本期各品項耗損數量（食材壞掉/過期報廢，跟「盤點修正」是不同類型，type==='waste'）。
+// 回傳正數（耗損掉的數量），跟 adjustMap 那種可正可負的「淨修正量」意義不同，方便加總跟顯示。
+function getPeriodWasteMap(startDate, endDate){
+  const map={};
+  stockRecords=LS.get('stockRecords')||[];
+  const inRange=d=> d>=startDate && d<=endDate;
+  stockRecords.forEach(r=>{ if(r.type==='waste' && inRange(r.date)) map[r.itemName]=(map[r.itemName]||0)+Math.abs(r.qty); });
+  return map;
+}
+
 function renderInventory(){
   stockRecords=LS.get('stockRecords')||[];
   MENU=LS.get('menu')||MENU;
@@ -3014,6 +3099,7 @@ function renderInventory(){
   const purchaseMap=getPeriodPurchaseMap(periodStart, periodEnd);
   const soldMap=getPeriodSalesMap(periodStart, periodEnd);
   const adjustMap=getPeriodAdjustMap(periodStart, periodEnd);
+  const wasteMap=getPeriodWasteMap(periodStart, periodEnd); // 本期各品項耗損數量（正數）
   // 庫存總覽卡片：沿用月結頁已經在用的 computePeriodTotals()，數字跟月結預覽/月結紀錄一致，不是另外算一套
   const periodTotals=computePeriodTotals(periodStart, periodEnd);
 
@@ -3042,13 +3128,15 @@ function renderInventory(){
 
   // 期初庫存金額：有月結紀錄就直接結轉上一期的期末庫存金額；
   // 沒有月結紀錄的話（例如還沒做過月結、但已經用「設定期初庫存」輸入過實際數量與成本），
-  // 用「目前庫存金額」反推回本期開始時的金額（目前金額－本期進貨金額＋本期銷售成本－本期盤點調整金額），
-  // 這樣才會對到您自己設定的期初庫存與成本，不會顯示成$0。
+  // 用「目前庫存金額」反推回本期開始時的金額（目前金額－本期進貨金額＋本期銷售成本－本期盤點調整金額＋本期耗損金額），
+  // 這樣才會對到您自己設定的期初庫存與成本，不會顯示成$0。耗損要加回來，因為它是額外的「流出」，
+  // 不像盤點修正那樣可正可負，一定會讓庫存變少，反推期初時要補回去。
   const costOfSoldAll=[...allStockNames].reduce((s,n)=>s+(soldMap[n]||0)*(getStock(n).avgCost||0),0);
   const adjustValueAll=[...allStockNames].reduce((s,n)=>s+(adjustMap[n]||0)*(getStock(n).avgCost||0),0);
+  const wasteValueAll=[...allStockNames].reduce((s,n)=>s+(wasteMap[n]||0)*(getStock(n).avgCost||0),0);
   const beginValueTotal = beginCloseRec
     ? (beginCloseRec.endValueTotal||0)
-    : Math.round((currentStockValueAll - periodTotals.inAmt + costOfSoldAll - adjustValueAll)*100)/100;
+    : Math.round((currentStockValueAll - periodTotals.inAmt + costOfSoldAll - adjustValueAll + wasteValueAll)*100)/100;
 
   const statusFilter=document.getElementById('inv-status-filter')?.value||'active';
   let names;
@@ -3065,12 +3153,14 @@ function renderInventory(){
     const sold=soldMap[name]||0;
     const purchaseQty=purchaseMap[name]||0;
     const adjustQty=adjustMap[name]||0;
+    const wasteQty=wasteMap[name]||0;
     const remaining=st.qty;
-    // 期初庫存：用「目前庫存」反推回本期開始時的庫存（剩餘－本期進貨＋本期銷售－盤盈盤損），
+    // 期初庫存：用「目前庫存」反推回本期開始時的庫存（剩餘－本期進貨＋本期銷售－盤盈盤損＋本期耗損），
     // 不能只靠「上一次月結」的快照——店家還沒做過月結時快照不存在，直接顯示0會跟
     // 「開始正式營業」時保留下來的真實庫存對不起來，變成「進貨0卻能賣」的矛盾畫面。
-    // 用反推公式可以保證這欄永遠跟本期進貨／銷售／盤盈盤損／剩餘庫存互相一致。
-    const beginQty=remaining-purchaseQty+sold-adjustQty;
+    // 耗損要加回來，因為耗損只會讓庫存變少（不像盤點修正可正可負），反推期初時要補回去。
+    // 用反推公式可以保證這欄永遠跟本期進貨／銷售／盤盈盤損／耗損／剩餘庫存互相一致。
+    const beginQty=remaining-purchaseQty+sold-adjustQty+wasteQty;
     const avgCost=st.avgCost||0;
     const stockValue=Math.round(remaining*avgCost*100)/100;
     const sellPrice=sellPriceMap[name]||0;
@@ -3105,8 +3195,9 @@ function renderInventory(){
   const totalProfit=totalRevEst-[...names].reduce((s,n)=>s+(soldMap[n]||0)*(getStock(n).avgCost||0),0);
   const totalRate=totalRevEst>0?Math.round(totalProfit/totalRevEst*100):0;
   const totalAdjust=[...names].reduce((s,n)=>s+(adjustMap[n]||0),0);
+  const totalWaste=[...names].reduce((s,n)=>s+(wasteMap[n]||0),0);
   // 跟每一列同一套反推公式，確保合計列也永遠對得起來
-  const totalBegin=totalRemaining-totalIn+totalSold-totalAdjust;
+  const totalBegin=totalRemaining-totalIn+totalSold-totalAdjust+totalWaste;
 
   // 庫存總覽卡片：periodTotals 已在函式開頭算好（跟月結預覽/月結紀錄同一套），這裡直接沿用
   const kpiEl=document.getElementById('inv-kpi-cards');
@@ -3117,7 +3208,7 @@ function renderInventory(){
       <div class="rpt-card"><div class="rpt-card-label">本期銷售金額</div><div class="rpt-card-val green">${fmtMoney(periodTotals.soldAmt)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">目前庫存金額</div><div class="rpt-card-val">${fmtMoney(currentStockValueAll)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">本期毛利</div><div class="rpt-card-val ${totalProfit>=0?'green':'red'}">${fmtMoney(totalProfit)}</div></div>
-      <div class="rpt-card"><div class="rpt-card-label">盤盈／盤損</div><div class="rpt-card-val ${totalAdjust>0?'green':totalAdjust<0?'red':''}">${totalAdjust>0?'+':''}${totalAdjust||0} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期耗損金額</div><div class="rpt-card-val ${periodTotals.wasteAmt>0?'red':''}">${fmtMoney(periodTotals.wasteAmt||0)}</div></div>
     `;
   }
 
@@ -3187,22 +3278,60 @@ function renderInvLowStock(){
 // for one item at a time. The system computes the difference itself;
 // this is never additive (5 → correct to 8 results in 8, not 13).
 // ══════════════════════════════════════════════════
+let stockfixTab='correct';
+function switchStockfixTab(tab){
+  stockfixTab=tab;
+  const panelCorrect=document.getElementById('stockfix-panel-correct');
+  const panelWaste=document.getElementById('stockfix-panel-waste');
+  const btnCorrect=document.getElementById('stockfix-tab-btn-correct');
+  const btnWaste=document.getElementById('stockfix-tab-btn-waste');
+  const title=document.getElementById('stockfix-modal-title');
+  const submitBtn=document.getElementById('stockfix-submit-btn');
+  if(!panelCorrect||!panelWaste) return;
+  const isWaste=tab==='waste';
+  panelCorrect.style.display=isWaste?'none':'block';
+  panelWaste.style.display=isWaste?'block':'none';
+  if(btnCorrect) btnCorrect.className='tbtn'+(isWaste?'':' active');
+  if(btnWaste) btnWaste.className='tbtn'+(isWaste?' active':'');
+  if(title) title.textContent=isWaste?'🗑️ 食材耗損':'✅ 庫存盤點';
+  if(submitBtn){
+    submitBtn.textContent=isWaste?'🗑️ 確認登記耗損':'✅ 確認修正';
+    submitBtn.onclick=isWaste?submitWaste:submitStockCorrection;
+  }
+}
+
 function renderStockCorrectionForm(){
   MENU=LS.get('menu')||MENU;
+  switchStockfixTab('correct'); // 每次打開視窗都預設回到「盤點修正」分頁
+
   const sel=document.getElementById('fix-item-sel');
-  if(!sel) return;
-  const prev=sel.value;
-  const statusFilter=document.getElementById('take-status-filter')?.value||'active';
-  const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
-    : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
-    : MENU;
-  sel.innerHTML = list.length ? list.map(m=>`<option value="${m.id}">${m.name}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
-  if(list.find(m=>m.id===parseInt(prev))) sel.value=prev;
+  if(sel){
+    const prev=sel.value;
+    const statusFilter=document.getElementById('take-status-filter')?.value||'active';
+    const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
+      : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
+      : MENU;
+    sel.innerHTML = list.length ? list.map(m=>`<option value="${m.id}">${m.name}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
+    if(list.find(m=>m.id===parseInt(prev))) sel.value=prev;
+    const dEl=document.getElementById('fix-date');
+    if(dEl && !dEl.value) dEl.value=todayStr();
+    onFixItemChange();
+  }
 
-  const dEl=document.getElementById('fix-date');
-  if(dEl && !dEl.value){ const d=new Date(); dEl.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-
-  onFixItemChange();
+  const wsel=document.getElementById('waste-item-sel');
+  if(wsel){
+    const wprev=wsel.value;
+    const wstatusFilter=document.getElementById('waste-status-filter')?.value||'active';
+    const wlist = wstatusFilter==='active' ? MENU.filter(m=>m.active!==false)
+      : wstatusFilter==='inactive' ? MENU.filter(m=>m.active===false)
+      : MENU;
+    wsel.innerHTML = wlist.length ? wlist.map(m=>`<option value="${m.id}">${m.name}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
+    if(wlist.find(m=>m.id===parseInt(wprev))) wsel.value=wprev;
+    const wdEl=document.getElementById('waste-date');
+    if(wdEl && !wdEl.value) wdEl.value=todayStr();
+    onWasteItemChange();
+    onWasteReasonChange();
+  }
 }
 
 function onFixItemChange(){
@@ -3212,6 +3341,25 @@ function onFixItemChange(){
   if(!sel||!curEl) return;
   const m=MENU.find(x=>x.id===parseInt(sel.value));
   curEl.value = m ? getStock(m.name).qty : 0;
+}
+
+// 食材耗損：選品項時同步顯示目前庫存跟目前平均成本（耗損金額都是自動用這個算，不用手動輸入價格）
+function onWasteItemChange(){
+  MENU=LS.get('menu')||MENU;
+  const sel=document.getElementById('waste-item-sel');
+  const curEl=document.getElementById('waste-current');
+  const costEl=document.getElementById('waste-cost-preview');
+  if(!sel||!curEl) return;
+  const m=MENU.find(x=>x.id===parseInt(sel.value));
+  const st=m?getStock(m.name):{qty:0,avgCost:0};
+  curEl.value = m ? st.qty : 0;
+  if(costEl) costEl.value = fmtCost(st.avgCost||0);
+}
+function onWasteReasonChange(){
+  const sel=document.getElementById('waste-reason-sel');
+  const customEl=document.getElementById('waste-reason-custom');
+  if(!sel||!customEl) return;
+  customEl.style.display = sel.value==='其他' ? 'block' : 'none';
 }
 
 function submitStockCorrection(){
@@ -3246,6 +3394,43 @@ function submitStockCorrection(){
   closeModal('modal-stockfix');
   renderInventory(); // refreshes 目前庫存／庫存異動／庫存金額／月結預覽 together
   showToast(`✅ 已將「${m.name}」庫存修正為 ${newQty}`,'ok');
+}
+
+// 食材耗損：跟「盤點修正」共用同一套庫存帳本寫入機制（stockRecords + adjustStock），
+// 差別只在於一定是「減少」、成本自動用目前平均成本、且獨立用 type:'waste' 標記，
+// 不會混進「盤盈/盤損」，另外反映在「本期耗損金額」卡片。
+function submitWaste(){
+  MENU=LS.get('menu')||MENU;
+  const sel=document.getElementById('waste-item-sel');
+  const m=MENU.find(x=>x.id===parseInt(sel?.value));
+  if(!m){ showToast('請選擇商品','err'); return; }
+
+  const date=document.getElementById('waste-date')?.value || todayStr();
+  if(isDateLocked(date)){ showToast('此日期已月結封存，不可新增耗損紀錄，請選擇月結之後的日期','err'); return; }
+
+  const qtyStr=document.getElementById('waste-qty')?.value;
+  if(qtyStr===''||qtyStr==null){ showToast('請輸入耗損數量','err'); return; }
+  const wasteQty=parseInt(qtyStr);
+  if(isNaN(wasteQty)||wasteQty<=0){ showToast('耗損數量請輸入大於0的整數','err'); return; }
+
+  const reasonSel=document.getElementById('waste-reason-sel')?.value||'其他';
+  const reasonCustom=(document.getElementById('waste-reason-custom')?.value||'').trim();
+  const reason = reasonSel==='其他' ? (reasonCustom||'其他') : reasonSel;
+  if(reasonSel==='其他' && !reasonCustom){ showToast('請填寫耗損原因','err'); return; }
+
+  const avgCost=getStock(m.name).avgCost||0;
+  stockRecords=LS.get('stockRecords')||[];
+  adjustStock(m.name, -wasteQty, null); // 只減少數量，不動平均成本
+  stockRecords.push({id:stockNid++,date,menuId:m.id,itemName:m.name,qty:-wasteQty,cost:avgCost,sellPrice:m.price,type:'waste',note:reason});
+  LS.set('stockRecords',stockRecords);
+  LS.set('stockNid',stockNid);
+
+  const wasteQtyEl=document.getElementById('waste-qty'); if(wasteQtyEl) wasteQtyEl.value='';
+  const wasteCustomEl=document.getElementById('waste-reason-custom'); if(wasteCustomEl) wasteCustomEl.value='';
+
+  closeModal('modal-stockfix');
+  renderInventory();
+  showToast(`🗑️ 已登記「${m.name}」耗損 ${wasteQty}（損失 ${fmtMoney(wasteQty*avgCost)}）`,'ok');
 }
 
 // ══════════════════════════════════════════════════
@@ -3512,6 +3697,12 @@ function computePeriodTotals(startDate, endDate){
   let adjQty=0;
   adjRecs.forEach(r=>{ adjQty+=r.qty; });
 
+  // 本期耗損：食材壞掉/過期直接報廢的數量與成本金額，跟「盤點修正」是不同類型（type==='waste'），
+  // 用發生當下記錄的成本（r.cost，即當時的平均成本）計算，不是用現在的平均成本回推。
+  const wasteRecs=stockRecords.filter(r=>r.type==='waste' && inRange(r.date));
+  let wasteQty=0, wasteAmt=0;
+  wasteRecs.forEach(r=>{ const q=Math.abs(r.qty); wasteQty+=q; wasteAmt+=q*(r.cost||0); });
+
   // 本期銷售數量／金額（沿用報表已結算的每日營業額/串數，已排除作廢訂單）
   const closedDaysAll=LS.get('closedDays')||[];
   const curBiz=LS.get('bizday')||bizDay;
@@ -3534,7 +3725,7 @@ function computePeriodTotals(startDate, endDate){
   const endQtyTotal=endItems.reduce((s,it)=>s+it.endQty,0);
   const endValueTotal=endItems.reduce((s,it)=>s+it.endValue,0);
 
-  return {startDate, endDate, inQty, inAmt, soldQty, soldAmt, adjQty, endItems, endQtyTotal, endValueTotal};
+  return {startDate, endDate, inQty, inAmt, soldQty, soldAmt, adjQty, wasteQty, wasteAmt, endItems, endQtyTotal, endValueTotal};
 }
 
 function renderMonthClosePreview(){
@@ -3575,6 +3766,7 @@ function renderMonthClosePreview(){
       <div class="rpt-card"><div class="rpt-card-label">本期銷售金額</div><div class="rpt-card-val green">${fmtMoney(t.soldAmt)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">本期毛利</div><div class="rpt-card-val ${periodProfit>=0?'green':'red'}">${fmtMoney(periodProfit)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">本期盤盈／盤損</div><div class="rpt-card-val ${t.adjQty>0?'green':t.adjQty<0?'red':''}">${t.adjQty>0?'+':''}${t.adjQty} 串</div></div>
+      <div class="rpt-card"><div class="rpt-card-label">本期耗損金額</div><div class="rpt-card-val ${t.wasteAmt>0?'red':''}">${fmtMoney(t.wasteAmt||0)}</div></div>
       <div class="rpt-card"><div class="rpt-card-label">期末庫存數量</div><div class="rpt-card-val">${t.endQtyTotal} 串</div></div>
       <div class="rpt-card"><div class="rpt-card-label">期末庫存金額</div><div class="rpt-card-val">${fmtMoney(t.endValueTotal)}</div></div>
     </div>
@@ -3628,6 +3820,7 @@ function doMonthClose(){
       locked:true,
       inQty:t.inQty, inAmt:t.inAmt,
       soldQty:t.soldQty, soldAmt:t.soldAmt, adjQty:t.adjQty,
+      wasteQty:t.wasteQty, wasteAmt:t.wasteAmt,
       endItems:t.endItems, endQtyTotal:t.endQtyTotal, endValueTotal:t.endValueTotal
     };
     monthCloses=monthCloses.filter(c=>c.closeDate!==closeDate);
@@ -3698,6 +3891,7 @@ function renderMonthClose(){
           <div class="od-row"><span>本期進貨</span><span>${c.inQty} 串／${fmtMoney(c.inAmt)}</span></div>
           <div class="od-row"><span>本期銷售</span><span>${c.soldQty} 串／${fmtMoney(c.soldAmt)}</span></div>
           <div class="od-row"><span>本期盤盈／盤損</span><span>${(c.adjQty||0)>0?'+':''}${c.adjQty||0} 串</span></div>
+          <div class="od-row"><span>本期耗損</span><span>${c.wasteQty||0} 串／${fmtMoney(c.wasteAmt||0)}</span></div>
           <div class="od-row"><span>期末庫存（＝下一期期初庫存）</span><span>${c.endQtyTotal} 串／${fmtMoney(c.endValueTotal)}</span></div>
           <div style="overflow-x:auto;margin-top:8px;">
           <table class="inv-table">
@@ -3786,16 +3980,20 @@ function renderInvRecords(){
   const rowsHtml=filtered.map(r=>{
     const key='ir'+r.id;
     const isAdjust=r.type==='adjust';
+    const isWaste=r.type==='waste';
+    const isQtyOnly=isAdjust||isWaste; // 庫存修正／耗損都是「純數量異動」，不影響進貨成本
+    const typeLabel = isWaste?'<span class="inv-rec-type-waste">耗損</span>':isAdjust?'<span class="inv-rec-type-adj">庫存修正</span>':'<span class="inv-rec-type-in">進貨</span>';
     const locked=isDateLocked(r.date);
     const note = r.note || '—';
+    const deleteFn = isWaste?`deleteWasteRecord(${r.id})`:isAdjust?`deleteStockTake(${r.id})`:`deletePurchaseRecord(${r.id})`;
     const actionHtml = locked
       ? `<span style="font-size:10px;color:var(--muted);">🔒 已月結</span>`
       : `<button class="set-del" onclick="event.stopPropagation();openEditRecordModal(${r.id})">編輯</button>
-         <button class="set-del" style="color:var(--red);border-color:var(--red);" onclick="event.stopPropagation();${isAdjust?`deleteStockTake(${r.id})`:`deletePurchaseRecord(${r.id})`}">刪除</button>`;
+         <button class="set-del" style="color:var(--red);border-color:var(--red);" onclick="event.stopPropagation();${deleteFn}">刪除</button>`;
     return `<tr onclick="toggleInvRow('${key}')" style="cursor:pointer;">
         <td style="font-family:'DM Mono',monospace;font-size:11px;"><span id="ia-${key}" style="display:inline-block;width:12px;color:var(--muted);">▸</span>${dispDate(r.date)}</td>
         <td style="font-weight:700;">${r.itemName}</td>
-        <td>${isAdjust?'<span class="inv-rec-type-adj">庫存修正</span>':'<span class="inv-rec-type-in">進貨</span>'}</td>
+        <td>${typeLabel}</td>
         <td style="font-family:'DM Mono',monospace;">${r.qty>0?'+':''}${r.qty}</td>
         <td style="font-family:'DM Mono',monospace;">${fmtCost(r.cost||0)}</td>
         <td style="font-family:'DM Mono',monospace;">${balanceAfter[r.id]}</td>
@@ -3805,7 +4003,9 @@ function renderInvRecords(){
       </tr>
       <tr id="${key}" style="display:none;">
         <td colspan="9" style="background:var(--surface2);padding:10px 12px;">
-          ${!isAdjust?`<div class="od-row"><span>進價／串</span><span>${fmtMoney(r.cost)}</span></div>
+          ${isWaste?`<div class="od-row"><span>耗損金額</span><span>${fmtMoney(Math.abs(r.qty)*(r.cost||0))}</span></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">耗損不計入進貨成本、不影響營業額與平均成本，只反映在「本期耗損金額」</div>`
+          : !isAdjust?`<div class="od-row"><span>進價／串</span><span>${fmtMoney(r.cost)}</span></div>
           <div class="od-row"><span>小計成本</span><span>${fmtMoney(r.qty*r.cost)}</span></div>`:'<div style="font-size:11px;color:var(--muted);">庫存修正不計入進貨成本、不影響營業額與平均成本</div>'}
         </td>
       </tr>`;
