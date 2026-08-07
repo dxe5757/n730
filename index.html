@@ -1042,7 +1042,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-18)';
+const APP_VERSION='v40 (hangrou-v40-19)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -2910,25 +2910,59 @@ function deleteWasteRecord(id){
     });
 }
 
-// 依日期／建立順序重播所有庫存異動，取得每一筆紀錄「異動後」的庫存餘額
-// （renderInvRecords 與編輯視窗共用同一套邏輯，避免兩邊各算一套）
+// 建立「查某品項、截至某天為止（含當天）總共賣了多少」的查詢函式。
+// 銷售資料是「每一天」聚合起來的（沒有精確到秒的時間戳記，無法完美插進同一天內每一筆
+// 進貨／耗損的中間），所以規則統一訂為：同一天的銷售，會反映在「當天最後結算」的庫存上，
+// 也就是每一筆庫存紀錄的「異動後庫存」＝累計進貨/修正/耗損，再扣掉「截至當天為止」的累計銷售。
+// 這樣至少能保證「今天最新一筆」一定會等於真實的目前庫存（跟 stockState.qty 對得起來）。
+function buildSoldThroughLookup(){
+  const salesByDay={}; // {day:{itemName:qty}}
+  (LS.get('closedDays')||[]).forEach(d=>{
+    if(!d.bizDay) return;
+    salesByDay[d.bizDay]=salesByDay[d.bizDay]||{};
+    Object.entries(d.dailySales||{}).forEach(([n,q])=>{ salesByDay[d.bizDay][n]=(salesByDay[d.bizDay][n]||0)+q; });
+  });
+  const dsNow=LS.get('dailySales')||{};
+  Object.entries(dsNow).forEach(([day,dayMap])=>{
+    salesByDay[day]=salesByDay[day]||{};
+    Object.entries(dayMap||{}).forEach(([n,q])=>{ salesByDay[day][n]=(salesByDay[day][n]||0)+q; });
+  });
+  const salesDays=Object.keys(salesByDay).sort();
+  const cache={};
+  return function soldThrough(name, date){
+    cache[name]=cache[name]||{};
+    if(cache[name][date]!==undefined) return cache[name][date];
+    let total=0;
+    for(const day of salesDays){
+      if(day>date) break;
+      total += (salesByDay[day][name]||0);
+    }
+    cache[name][date]=total;
+    return total;
+  };
+}
+
+// 依日期／建立順序重播所有庫存異動（進貨／庫存修正／耗損），再扣掉截至當天為止的銷售，
+// 取得每一筆紀錄「異動後」的真實庫存餘額（renderInvRecords 與編輯視窗共用同一套邏輯，避免兩邊各算一套）
 function computeBalanceAfterMap(){
   stockRecords=LS.get('stockRecords')||[];
   const chronological=[...stockRecords].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:(a.id-b.id));
+  const soldThrough=buildSoldThroughLookup();
   const balanceAfter={};
   const running={};
   chronological.forEach(r=>{
     running[r.itemName]=(running[r.itemName]||0)+r.qty;
-    balanceAfter[r.id]=running[r.itemName];
+    balanceAfter[r.id]=running[r.itemName]-soldThrough(r.itemName, r.date);
   });
   return balanceAfter;
 }
 
 // 依日期／建立順序重播所有庫存異動，取得每一筆紀錄「異動後」的庫存金額（數量×當時平均成本）。
-// 平均成本只有「進貨」會改變（跟 adjustStock 用同一套加權平均邏輯），庫存修正只影響數量。
+// 平均成本只有「進貨」會改變（跟 adjustStock 用同一套加權平均邏輯），庫存修正／耗損／銷售只影響數量。
 function computeValueAfterMap(){
   stockRecords=LS.get('stockRecords')||[];
   const chronological=[...stockRecords].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:(a.id-b.id));
+  const soldThrough=buildSoldThroughLookup();
   const valueAfter={};
   const running={};
   chronological.forEach(r=>{
@@ -2942,7 +2976,8 @@ function computeValueAfterMap(){
     } else {
       s.qty+=r.qty;
     }
-    valueAfter[r.id]=Math.round(s.qty*s.avgCost*100)/100;
+    const trueQty = s.qty - soldThrough(r.itemName, r.date);
+    valueAfter[r.id]=Math.round(trueQty*s.avgCost*100)/100;
   });
   return valueAfter;
 }
