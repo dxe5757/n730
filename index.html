@@ -1044,12 +1044,12 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-20)';
+const APP_VERSION='v40 (hangrou-v40-21)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
-// migrate legacy menu items: ensure active/minStock fields exist (never drop existing items/data)
-MENU = MENU.map(m=>({ active:true, minStock:null, ...m }));
+// migrate legacy menu items: ensure active/minStock/noStockTrack fields exist (never drop existing items/data)
+MENU = MENU.map(m=>({ active:true, minStock:null, noStockTrack:false, ...m }));
 LS.set('menu', MENU);
 // 類別清單（v40 新增）：獨立於商品資料存在，讓「新增類別」可以先建立空類別、之後再指派品項。
 // 舊資料沒有這個 key 時，從既有商品的 cat 欄位還原一份，不影響任何既有商品/分類資料。
@@ -1648,9 +1648,11 @@ function confirmPay(){
   if(receivedAmt<total){showToast('收款金額不足','err');return;}
 
   // ── stock guard: block checkout if any item would go negative ──
+  // 「不追蹤庫存」的品項（例如純粹用來調整金額的加價項目）完全跳過這個檢查，
+  // 因為它們沒有對應的實體庫存，不需要、也不應該被扣庫存或擋結帳。
   const need={};
   cart.forEach(c=>{
-    const m=MENU.find(x=>x.id===c.menuId); if(!m) return;
+    const m=MENU.find(x=>x.id===c.menuId); if(!m || m.noStockTrack) return;
     need[m.name]=(need[m.name]||0)+c.rows.length;
   });
   const shortages=Object.entries(need)
@@ -1914,7 +1916,7 @@ function renderReportTopKPIs(){
   // 低庫存提醒：以各品項自訂的「最低庫存」為準（未設定則不提醒），庫存來自統一庫存帳本
   MENU=LS.get('menu')||MENU;
   const lowItems=MENU
-    .filter(m=>m.active!==false && (m.minStock||0)>0)
+    .filter(m=>m.active!==false && !m.noStockTrack && (m.minStock||0)>0)
     .map(m=>({name:m.name, remaining:getStock(m.name).qty, minStock:m.minStock}))
     .filter(it=>it.remaining<=it.minStock)
     .sort((a,b)=>a.remaining-b.remaining);
@@ -2356,14 +2358,16 @@ function renderSettings(){
         <input class="inv-edit-inp" value="${m.name}" style="width:160px;max-width:160px;flex:0 0 auto;"
           onchange="editMenuItem(${m.id},'name',this.value)" onclick="this.select()">
         <span class="set-item-cat" style="white-space:nowrap;">／${m.cat}</span>
+        ${m.noStockTrack?'<span style="font-size:9px;color:var(--muted);background:var(--surface2);padding:2px 6px;border-radius:6px;">不追蹤庫存</span>':''}
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <label style="font-size:9px;color:var(--muted);">售價</label>
         <input class="inv-edit-inp" type="number" value="${m.price}" style="width:60px;text-align:center;"
           onchange="editMenuItem(${m.id},'price',this.value)" onclick="this.select()">
-        <label style="font-size:9px;color:var(--muted);">最低庫存</label>
+        ${m.noStockTrack?'':`<label style="font-size:9px;color:var(--muted);">最低庫存</label>
         <input class="inv-edit-inp" type="number" value="${m.minStock!=null?m.minStock:''}" placeholder="留空＝不提醒" style="width:76px;text-align:center;"
-          onchange="editMenuItem(${m.id},'minStock',this.value)" onclick="this.select()">
+          onchange="editMenuItem(${m.id},'minStock',this.value)" onclick="this.select()">`}
+        <button class="set-del" style="${m.noStockTrack?'color:var(--brand);border-color:var(--brand);':''}" onclick="toggleNoStockTrack(${m.id})">${m.noStockTrack?'↩ 恢復追蹤庫存':'🚫 不追蹤庫存'}</button>
         <button class="set-del" style="margin-left:auto;${m.active===false?'color:var(--green);border-color:var(--green);':'color:var(--red);border-color:var(--red);'}" onclick="toggleMenuActive(${m.id})">${m.active===false?'啟用':'停賣'}</button>
         <button class="set-del" style="color:var(--red);border-color:var(--red);" onclick="deleteMenuItem(${m.id})">刪除</button>
       </div>
@@ -2656,6 +2660,24 @@ function toggleMenuActive(id){
     });
 }
 
+// 「不追蹤庫存」：給像「Uber加價」這種純粹用來調整金額、沒有對應實體食材的品項用。
+// 開啟後這個品項會整個從庫存管理（進貨/盤點/耗損/期初設定/健康檢查/結帳扣庫存）中跳過，
+// 但銷售金額／毛利還是會正常累計進報表，不會漏算這筆收入。
+function toggleNoStockTrack(id){
+  const m=MENU.find(x=>x.id===id); if(!m) return;
+  const willEnable = !m.noStockTrack;
+  showConfirm(willEnable?'確認設定為不追蹤庫存':'確認恢復庫存追蹤',
+    willEnable
+      ? `確定「${m.name}」不追蹤庫存嗎？設定後：\n・結帳時不會再檢查/扣減它的庫存\n・不會出現在進貨／盤點／耗損／設定期初庫存的品項清單\n・系統狀態健康檢查不會再把它列為異常\n\n銷售金額與毛利仍會正常計算，不受影響。`
+      : `確定要恢復「${m.name}」的庫存追蹤嗎？恢復後這個品項會重新出現在庫存相關功能中，需要您自行進貨/盤點設定正確的庫存數量。`,
+    ()=>{
+      m.noStockTrack = willEnable;
+      LS.set('menu',MENU);
+      buildCats(); buildMenu(); renderSettings(); renderInventory();
+      showToast(willEnable?'🚫 已設定為不追蹤庫存':'↩ 已恢復庫存追蹤','ok');
+    });
+}
+
 // ══════════════════════════════════════════════════
 // 品項刪除（v40 新增）
 // 只從商品清單移除，歷史交易／庫存／進貨／月結／報表資料一律保留（皆以品項名稱為準，不受影響）
@@ -2738,9 +2760,9 @@ function initInvSelectors(){
   if(!sel) return;
   const prev = sel.value;
   const statusFilter=document.getElementById('purchase-status-filter')?.value||'active';
-  const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
+  const list = (statusFilter==='active' ? MENU.filter(m=>m.active!==false)
     : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
-    : MENU;
+    : MENU).filter(m=>!m.noStockTrack); // 不追蹤庫存的品項不需要進貨，不列進來
   sel.innerHTML = list.length ? list.map(m=>`<option value="${m.id}">${m.name}（${fmtMoney(m.price)}）${m.active===false?'（已停賣）':''}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
   if(list.find(m=>m.id===parseInt(prev))) sel.value=prev;
   // auto-fill 進價：優先用這個品項「目前的平均成本」（不管是從進貨紀錄算出來的，
@@ -3198,14 +3220,21 @@ function renderInventory(){
     : Math.round((currentStockValueAll - periodTotals.inAmt + costOfSoldAll - adjustValueAll + wasteValueAll)*100)/100;
 
   const statusFilter=document.getElementById('inv-status-filter')?.value||'active';
-  let names;
+  let namesAll; // 依「啟用／停用／全部」篩選，但不排除「不追蹤庫存」的品項——
+  // 這個集合專門用來算「金額類」加總（本期銷售金額／本期毛利），因為這些品項雖然沒有
+  // 真正在追蹤庫存，但銷售金額跟毛利仍然要正確算進報表，不能因為不追蹤庫存就漏算這筆收入。
   if(statusFilter==='active'){
-    names=new Set(MENU.filter(m=>m.active!==false).map(m=>m.name));
+    namesAll=new Set(MENU.filter(m=>m.active!==false).map(m=>m.name));
   } else if(statusFilter==='inactive'){
-    names=new Set(MENU.filter(m=>m.active===false).map(m=>m.name));
+    namesAll=new Set(MENU.filter(m=>m.active===false).map(m=>m.name));
   } else {
-    names=names0;
+    namesAll=names0;
   }
+  // names：庫存表格實際顯示的品項清單，所有「庫存數量」相關的合計（本期進貨/銷售數量/
+  // 剩餘庫存/庫存金額/盤盈盤損/耗損/期初庫存）都用這個，特地排除「不追蹤庫存」的品項——
+  // 它們沒有真正的庫存數字可言，硬算進去只會出現誤導的數字（例如「期初庫存」被賣出數量污染）。
+  const noTrackNamesSet=new Set(MENU.filter(m=>m.noStockTrack).map(m=>m.name));
+  const names=new Set([...namesAll].filter(n=>!noTrackNamesSet.has(n)));
 
   const summaryRows=[...names].sort().map(name=>{
     const st=getStock(name);
@@ -3250,8 +3279,10 @@ function renderInventory(){
   const totalSold=[...names].reduce((s,n)=>s+(soldMap[n]||0),0);
   const totalRemaining=[...names].reduce((s,n)=>s+getStock(n).qty,0);
   const totalStockValue=[...names].reduce((s,n)=>{ const st=getStock(n); return s+Math.round(st.qty*(st.avgCost||0)*100)/100; },0);
-  const totalRevEst=[...names].reduce((s,n)=>s+(soldMap[n]||0)*(sellPriceMap[n]||0),0);
-  const totalProfit=totalRevEst-[...names].reduce((s,n)=>s+(soldMap[n]||0)*(getStock(n).avgCost||0),0);
+  // 本期毛利／銷售金額估算：故意用 namesAll（含「不追蹤庫存」的品項），
+  // 讓像 Uber 加價這種純粹調整金額、沒有實體庫存的品項，銷售額跟毛利還是會正確算進來。
+  const totalRevEst=[...namesAll].reduce((s,n)=>s+(soldMap[n]||0)*(sellPriceMap[n]||0),0);
+  const totalProfit=totalRevEst-[...namesAll].reduce((s,n)=>s+(soldMap[n]||0)*(getStock(n).avgCost||0),0);
   const totalRate=totalRevEst>0?Math.round(totalProfit/totalRevEst*100):0;
   const totalAdjust=[...names].reduce((s,n)=>s+(adjustMap[n]||0),0);
   const totalWaste=[...names].reduce((s,n)=>s+(wasteMap[n]||0),0);
@@ -3319,7 +3350,7 @@ function renderInvLowStock(){
   if(!el) return;
   MENU=LS.get('menu')||MENU;
   const lowItems=MENU
-    .filter(m=>m.active!==false && (m.minStock||0)>0)
+    .filter(m=>m.active!==false && !m.noStockTrack && (m.minStock||0)>0)
     .map(m=>({name:m.name, remaining:getStock(m.name).qty, minStock:m.minStock}))
     .filter(it=>it.remaining<=it.minStock)
     .sort((a,b)=>a.remaining-b.remaining);
@@ -3367,9 +3398,9 @@ function renderStockCorrectionForm(){
   if(sel){
     const prev=sel.value;
     const statusFilter=document.getElementById('take-status-filter')?.value||'active';
-    const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
+    const list = (statusFilter==='active' ? MENU.filter(m=>m.active!==false)
       : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
-      : MENU;
+      : MENU).filter(m=>!m.noStockTrack); // 不追蹤庫存的品項不需要盤點，不列進來
     sel.innerHTML = list.length ? list.map(m=>`<option value="${m.id}">${m.name}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
     if(list.find(m=>m.id===parseInt(prev))) sel.value=prev;
     const dEl=document.getElementById('fix-date');
@@ -3381,9 +3412,9 @@ function renderStockCorrectionForm(){
   if(wsel){
     const wprev=wsel.value;
     const wstatusFilter=document.getElementById('waste-status-filter')?.value||'active';
-    const wlist = wstatusFilter==='active' ? MENU.filter(m=>m.active!==false)
+    const wlist = (wstatusFilter==='active' ? MENU.filter(m=>m.active!==false)
       : wstatusFilter==='inactive' ? MENU.filter(m=>m.active===false)
-      : MENU;
+      : MENU).filter(m=>!m.noStockTrack); // 不追蹤庫存的品項不會有耗損，不列進來
     wsel.innerHTML = wlist.length ? wlist.map(m=>`<option value="${m.id}">${m.name}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
     if(wlist.find(m=>m.id===parseInt(wprev))) wsel.value=wprev;
     const wdEl=document.getElementById('waste-date');
@@ -3501,9 +3532,9 @@ let mpRowId=0;
 function mpItemOptionsHtml(){
   MENU=LS.get('menu')||MENU;
   const statusFilter=document.getElementById('mp-status-filter')?.value||'active';
-  const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
+  const list = (statusFilter==='active' ? MENU.filter(m=>m.active!==false)
     : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
-    : MENU;
+    : MENU).filter(m=>!m.noStockTrack); // 不追蹤庫存的品項不需要進貨，不列進來
   return list.length ? list.map(m=>`<option value="${m.id}">${m.name}</option>`).join('') : '<option value="">（此篩選條件下沒有品項）</option>';
 }
 function renderMultiPurchaseRows(){
@@ -3593,9 +3624,9 @@ function renderInitStockForm(){
   const dEl=document.getElementById('initstock-date');
   if(dEl && !dEl.value) dEl.value=todayStr();
   const statusFilter=document.getElementById('initstock-status-filter')?.value||'active';
-  const list = statusFilter==='active' ? MENU.filter(m=>m.active!==false)
+  const list = (statusFilter==='active' ? MENU.filter(m=>m.active!==false)
     : statusFilter==='inactive' ? MENU.filter(m=>m.active===false)
-    : MENU;
+    : MENU).filter(m=>!m.noStockTrack); // 不追蹤庫存的品項不需要設定期初庫存，不列進來
   const listEl=document.getElementById('initstock-list');
   if(!listEl) return;
   listEl.innerHTML = list.length ? `
@@ -3724,7 +3755,8 @@ function getCurrentPeriodStart(){
 function validateStockHealth(){
   MENU=LS.get('menu')||MENU;
   stockState=LS.get('stockState')||stockState;
-  const names=new Set([...Object.keys(stockState), ...MENU.map(m=>m.name)]);
+  const noTrackNames=new Set(MENU.filter(m=>m.noStockTrack).map(m=>m.name));
+  const names=new Set([...Object.keys(stockState), ...MENU.map(m=>m.name)].filter(n=>!noTrackNames.has(n)));
   const issues=[];
   names.forEach(name=>{
     const st=getStock(name);
