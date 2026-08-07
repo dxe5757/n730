@@ -841,6 +841,8 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
       <div class="set-section">
         <div class="set-title">ℹ️ 版本資訊</div>
         <div id="version-info" style="font-size:11px;color:var(--muted);line-height:1.9;"></div>
+        <button class="tbtn" style="width:100%;margin-top:10px;" onclick="forceUpdateApp()">🔄 強制更新到最新版本</button>
+        <p style="font-size:10px;color:var(--muted);line-height:1.6;margin-top:6px;">如果覆蓋 GitHub 後畫面一直沒有變成新版本，按這個按鈕會清掉舊的離線快取、重新抓取最新檔案，不會動到您的庫存/交易資料。</p>
       </div>
     </div>
   </div>
@@ -1042,7 +1044,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-19)';
+const APP_VERSION='v40 (hangrou-v40-20)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -2391,6 +2393,28 @@ function renderSettings(){
   const bsdEl=document.getElementById('biz-start-date');
   if(bsdEl && !bsdEl.value) bsdEl.value = LS.get('businessStartDate') || todayStr();
   runHealthCheck(); // proactively show data-health status every time settings opens, not just on button click
+}
+
+// 強制更新：直接把「離線快取」（service worker + Cache Storage）整組砍掉重練，
+// 不靠瀏覽器自己判斷要不要抓新版本（這個判斷時機常常不可靠，尤其 iPad 上的
+// Safari「加入主畫面」PWA），保證下一次載入一定是從網路重新抓最新的檔案。
+// 只清「程式碼快取」，完全不會動到 localStorage 裡的庫存/交易資料。
+async function forceUpdateApp(){
+  showToast('🔄 正在清除舊版快取，請稍候…','ok');
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+    }
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    showToast('✅ 已清除完成，即將重新載入最新版本…','ok');
+    setTimeout(()=>{ location.reload(true); }, 800);
+  }catch(err){
+    showToast('⚠️ 清除快取時發生錯誤，請手動關閉 App 後重新打開','err');
+  }
 }
 
 // ══════════════════════════════════════════════════
