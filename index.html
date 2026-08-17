@@ -1044,7 +1044,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-21)';
+const APP_VERSION='v40 (hangrou-v40-22)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -3212,9 +3212,13 @@ function renderInventory(){
   // 用「目前庫存金額」反推回本期開始時的金額（目前金額－本期進貨金額＋本期銷售成本－本期盤點調整金額＋本期耗損金額），
   // 這樣才會對到您自己設定的期初庫存與成本，不會顯示成$0。耗損要加回來，因為它是額外的「流出」，
   // 不像盤點修正那樣可正可負，一定會讓庫存變少，反推期初時要補回去。
+  // 盤點修正／耗損的金額，直接用 periodTotals 裡已經算好、記錄「當下發生時」成本的 adjAmt／wasteAmt，
+  // 不要再用「現在」的平均成本重算一次——不然之後只要有新進貨改變了平均成本，連帶會讓「過去」
+  // 這幾筆修正／耗損的金額跟著變動，害期初庫存金額被不相干的後續進貨影響、無故浮動。
+  // （本期銷售成本目前仍只能用「目前平均成本」概算，因為銷售當下沒有另外鎖住成本，這點仍是近似值）
   const costOfSoldAll=[...allStockNames].reduce((s,n)=>s+(soldMap[n]||0)*(getStock(n).avgCost||0),0);
-  const adjustValueAll=[...allStockNames].reduce((s,n)=>s+(adjustMap[n]||0)*(getStock(n).avgCost||0),0);
-  const wasteValueAll=[...allStockNames].reduce((s,n)=>s+(wasteMap[n]||0)*(getStock(n).avgCost||0),0);
+  const adjustValueAll=periodTotals.adjAmt||0;
+  const wasteValueAll=periodTotals.wasteAmt||0;
   const beginValueTotal = beginCloseRec
     ? (beginCloseRec.endValueTotal||0)
     : Math.round((currentStockValueAll - periodTotals.inAmt + costOfSoldAll - adjustValueAll + wasteValueAll)*100)/100;
@@ -3783,10 +3787,12 @@ function computePeriodTotals(startDate, endDate){
   let inQty=0, inAmt=0;
   inRecs.forEach(r=>{ inQty+=r.qty; inAmt+=r.qty*r.cost; });
 
-  // 本期盤盈／盤損：庫存修正的淨異動量（正＝盤盈，負＝盤損）
+  // 本期盤盈／盤損：庫存修正的淨異動量（正＝盤盈，負＝盤損），金額用「當下記錄」的成本
+  // （r.cost，即那次修正發生當時的平均成本），不是用現在的平均成本回推——避免之後有新
+  // 進貨改變了平均成本，反而讓「過去」這筆修正的金額跟著變動。
   const adjRecs=stockRecords.filter(r=>r.type==='adjust' && inRange(r.date));
-  let adjQty=0;
-  adjRecs.forEach(r=>{ adjQty+=r.qty; });
+  let adjQty=0, adjAmt=0;
+  adjRecs.forEach(r=>{ adjQty+=r.qty; adjAmt+=r.qty*(r.cost||0); });
 
   // 本期耗損：食材壞掉/過期直接報廢的數量與成本金額，跟「盤點修正」是不同類型（type==='waste'），
   // 用發生當下記錄的成本（r.cost，即當時的平均成本）計算，不是用現在的平均成本回推。
@@ -3816,7 +3822,7 @@ function computePeriodTotals(startDate, endDate){
   const endQtyTotal=endItems.reduce((s,it)=>s+it.endQty,0);
   const endValueTotal=endItems.reduce((s,it)=>s+it.endValue,0);
 
-  return {startDate, endDate, inQty, inAmt, soldQty, soldAmt, adjQty, wasteQty, wasteAmt, endItems, endQtyTotal, endValueTotal};
+  return {startDate, endDate, inQty, inAmt, soldQty, soldAmt, adjQty, adjAmt, wasteQty, wasteAmt, endItems, endQtyTotal, endValueTotal};
 }
 
 function renderMonthClosePreview(){
