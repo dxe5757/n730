@@ -1044,7 +1044,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-25)';
+const APP_VERSION='v40 (hangrou-v40-26)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -2995,6 +2995,14 @@ function buildSoldThroughLookup(){
   };
 }
 
+// 判斷這筆庫存紀錄「當下有沒有真正設定/更新平均成本」：除了進貨（type:'in'）以外，
+// 「設定期初庫存」雖然存的類型也是 type:'adjust'，但它會真的帶入成本去混合平均成本
+// （跟進貨走同一套 adjustStock 加權平均邏輯），不是單純的數量修正——這兩種都要用
+// 加權平均公式更新成本，其餘的庫存盤點修正／耗損只影響數量、不影響成本。
+function isCostBlendRecord(r){
+  return r.type==='in' || (r.type==='adjust' && (r.note||'').indexOf('設定期初庫存')===0);
+}
+
 // 期初庫存快照：正向重播「本期起始日之前」發生過的所有庫存事件（進貨／修正／耗損／銷售），
 // 用每一筆紀錄自己當時的成本去算，得到「本期開始那一刻」的真實庫存數量與金額。
 // 這個算法完全不去看「起始日之後」發生的任何事情，所以不管之後有多少新進貨、
@@ -3014,13 +3022,15 @@ function computeBeginSnapshot(periodStart){
   before.forEach(r=>{
     if(!state[r.itemName]) state[r.itemName]={qty:0,avgCost:0};
     const s=state[r.itemName];
-    if(r.type==='in' && r.qty>0){
+    if(isCostBlendRecord(r) && r.qty>0){
       const newQty=s.qty+r.qty;
       s.avgCost = s.qty>0 ? (((s.qty*s.avgCost)+(r.qty*r.cost))/newQty) : r.cost;
       s.avgCost = Math.round(s.avgCost*100)/100;
       s.qty=newQty;
+    } else if(isCostBlendRecord(r) && r.qty===0){
+      s.avgCost = r.cost; // 設定期初庫存「僅校正成本」：數量沒變，直接把成本改成當時設定的值
     } else {
-      s.qty+=r.qty; // 庫存修正／耗損：只影響數量，不動成本
+      s.qty+=r.qty; // 庫存盤點修正／耗損：只影響數量，不動成本
     }
   });
 
@@ -3054,7 +3064,8 @@ function computeBalanceAfterMap(){
 }
 
 // 依日期／建立順序重播所有庫存異動，取得每一筆紀錄「異動後」的庫存金額（數量×當時平均成本）。
-// 平均成本只有「進貨」會改變（跟 adjustStock 用同一套加權平均邏輯），庫存修正／耗損／銷售只影響數量。
+// 平均成本只有「進貨」跟「設定期初庫存」會改變（跟 adjustStock 用同一套加權平均邏輯，
+// 見 isCostBlendRecord），庫存盤點修正／耗損／銷售只影響數量。
 function computeValueAfterMap(){
   stockRecords=LS.get('stockRecords')||[];
   const chronological=[...stockRecords].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:(a.id-b.id));
@@ -3064,11 +3075,13 @@ function computeValueAfterMap(){
   chronological.forEach(r=>{
     if(!running[r.itemName]) running[r.itemName]={qty:0,avgCost:0};
     const s=running[r.itemName];
-    if(r.type==='in' && r.qty>0){
+    if(isCostBlendRecord(r) && r.qty>0){
       const newQty=s.qty+r.qty;
       s.avgCost = s.qty>0 ? (((s.qty*s.avgCost)+(r.qty*r.cost))/newQty) : r.cost;
       s.avgCost = Math.round(s.avgCost*100)/100;
       s.qty=newQty;
+    } else if(isCostBlendRecord(r) && r.qty===0){
+      s.avgCost = r.cost;
     } else {
       s.qty+=r.qty;
     }
