@@ -1044,7 +1044,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-22)';
+const APP_VERSION='v40 (hangrou-v40-23)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -4166,12 +4166,16 @@ init();
 </script>
 <script>
 if('serviceWorker' in navigator && location.protocol==='https:'){
-  let refreshing=false;
   // 新版本裝好、開始接管頁面時，自動重新整理一次抓最新內容——
   // 不用再手動清瀏覽資料／快取（那樣連 localStorage 裡的營業資料都會一起被清掉）。
+  // 注意：這裡刻意用 sessionStorage 而不是普通變數當防護旗標。普通變數在 location.reload()
+  // 之後會被重新宣告成 false，等於完全沒有防護；如果瀏覽器連續觸發好幾次 controllerchange
+  // （已知會發生，尤其版本更新頻繁的時候），就會一直重新整理形成無窮迴圈，畫面瘋狂閃爍、
+  // 完全點不進去。sessionStorage 的值會跨越 reload 存活，同一個分頁開著的期間最多只會
+  // 自動重新整理一次，就算再收到 controllerchange 也不會再觸發，從根本上避免這種迴圈。
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(refreshing) return;
-    refreshing=true;
+    if(sessionStorage.getItem('sw_auto_reloaded')) return;
+    sessionStorage.setItem('sw_auto_reloaded','1');
     location.reload();
   });
   window.addEventListener('load',()=>{
