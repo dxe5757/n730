@@ -1044,7 +1044,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-23)';
+const APP_VERSION='v40 (hangrou-v40-24)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -2415,7 +2415,14 @@ async function forceUpdateApp(){
       await Promise.all(keys.map(k=>caches.delete(k)));
     }
     showToast('✅ 已清除完成，即將重新載入最新版本…','ok');
-    setTimeout(()=>{ location.reload(true); }, 800);
+    setTimeout(()=>{
+      // 不能只靠 location.reload(true)——這個寫法在 Safari 上不保證真的略過瀏覽器
+      // 「一般網頁快取」（跟 Service Worker 的離線快取是不同層，這裡指的是 GitHub Pages
+      // 回應本身帶的快取規則）。改成在網址後面加一個每次都不一樣的參數，讓瀏覽器直接
+      // 當成一個「從沒看過」的全新網址去抓，保證不會用到任何層級的快取。
+      const url=location.pathname+'?_fu='+Date.now();
+      location.href=url;
+    }, 800);
   }catch(err){
     showToast('⚠️ 清除快取時發生錯誤，請手動關閉 App 後重新打開','err');
   }
