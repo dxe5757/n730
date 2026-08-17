@@ -1044,7 +1044,7 @@ const PEPPER=['正常','胡椒多','胡椒少','去胡椒'];
 const SAUCE=['正常','醬多','醬少','去醬'];
 
 // ── STATE ──
-const APP_VERSION='v40 (hangrou-v40-24)';
+const APP_VERSION='v40 (hangrou-v40-25)';
 const APP_BUILD_DATE='2026-08-04';
 let storeName  = LS.get('storeName')  || '夯肉 HANGROU';
 let MENU       = LS.get('menu')       || DEFAULT_MENU;
@@ -2995,6 +2995,49 @@ function buildSoldThroughLookup(){
   };
 }
 
+// 期初庫存快照：正向重播「本期起始日之前」發生過的所有庫存事件（進貨／修正／耗損／銷售），
+// 用每一筆紀錄自己當時的成本去算，得到「本期開始那一刻」的真實庫存數量與金額。
+// 這個算法完全不去看「起始日之後」發生的任何事情，所以不管之後有多少新進貨、
+// 平均成本怎麼變動，這個快照永遠固定不變——不會再被後續進貨影響。
+// 只適用於「還沒月結過」的情況；有月結紀錄時，期初庫存直接用月結當下鎖住的
+// endItems／endValueTotal，那才是真正不可變的歷史快照，不需要也不能用這裡重算。
+function computeBeginSnapshot(periodStart){
+  stockRecords=LS.get('stockRecords')||[];
+  MENU=LS.get('menu')||MENU;
+  const soldThrough=buildSoldThroughLookup();
+  const d=new Date(periodStart+'T00:00:00'); d.setDate(d.getDate()-1);
+  const dayBefore=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+
+  const before=stockRecords.filter(r=>r.date<periodStart)
+    .sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:(a.id-b.id));
+  const state={}; // {name:{qty,avgCost}}
+  before.forEach(r=>{
+    if(!state[r.itemName]) state[r.itemName]={qty:0,avgCost:0};
+    const s=state[r.itemName];
+    if(r.type==='in' && r.qty>0){
+      const newQty=s.qty+r.qty;
+      s.avgCost = s.qty>0 ? (((s.qty*s.avgCost)+(r.qty*r.cost))/newQty) : r.cost;
+      s.avgCost = Math.round(s.avgCost*100)/100;
+      s.qty=newQty;
+    } else {
+      s.qty+=r.qty; // 庫存修正／耗損：只影響數量，不動成本
+    }
+  });
+
+  const names=new Set([...Object.keys(state), ...MENU.map(m=>m.name)]);
+  const itemsQty={}, itemsCost={};
+  let qtyTotal=0, valueTotal=0;
+  names.forEach(name=>{
+    const s=state[name]||{qty:0,avgCost:0};
+    const trueQty=s.qty-soldThrough(name, dayBefore);
+    itemsQty[name]=trueQty;
+    itemsCost[name]=s.avgCost;
+    qtyTotal+=trueQty;
+    valueTotal+=Math.round(trueQty*s.avgCost*100)/100;
+  });
+  return {itemsQty, itemsCost, qtyTotal, valueTotal};
+}
+
 // 依日期／建立順序重播所有庫存異動（進貨／庫存修正／耗損），再扣掉截至當天為止的銷售，
 // 取得每一筆紀錄「異動後」的真實庫存餘額（renderInvRecords 與編輯視窗共用同一套邏輯，避免兩邊各算一套）
 function computeBalanceAfterMap(){
@@ -3191,15 +3234,24 @@ function renderInventory(){
   // 庫存總覽卡片：沿用月結頁已經在用的 computePeriodTotals()，數字跟月結預覽/月結紀錄一致，不是另外算一套
   const periodTotals=computePeriodTotals(periodStart, periodEnd);
 
-  // 期初庫存（＝上一次月結的期末庫存）：直接沿用月結紀錄裡已經存好的 endItems／endValueTotal，
-  // 不是另外重新定義一套算法；從未月結過的話，本期就是從零開始，期初庫存視為 0。
+  // 期初庫存（＝上一次月結的期末庫存）：有月結紀錄就直接沿用月結紀錄裡已經存好的
+  // endItems／endValueTotal（月結當下鎖住的歷史快照，永遠不變）；沒有月結紀錄的話，
+  // 用 computeBeginSnapshot() 正向重播起始日之前的所有紀錄算出真實快照——這個快照
+  // 只看「起始日之前」發生過的事，不受起始日之後任何新進貨影響，數字不會再跳動。
   monthCloses=LS.get('monthCloses')||monthCloses;
   const lockedClosesForBegin=monthCloses.filter(c=>c.locked && c.closeDate);
   const beginCloseRec = lockedClosesForBegin.length
     ? lockedClosesForBegin.reduce((mx,c)=> (!mx||c.closeDate>mx.closeDate)?c:mx, null)
     : null;
   const beginItemsMap={};
-  (beginCloseRec?.endItems||[]).forEach(it=>{ beginItemsMap[it.name]={qty:it.endQty, value:it.endValue}; });
+  const beginSnapshot = beginCloseRec ? null : computeBeginSnapshot(periodStart);
+  if(beginCloseRec){
+    (beginCloseRec.endItems||[]).forEach(it=>{ beginItemsMap[it.name]={qty:it.endQty, value:it.endValue}; });
+  } else {
+    Object.keys(beginSnapshot.itemsQty).forEach(name=>{
+      beginItemsMap[name]={qty:beginSnapshot.itemsQty[name], value:Math.round(beginSnapshot.itemsQty[name]*(beginSnapshot.itemsCost[name]||0)*100)/100};
+    });
+  }
 
   const sellPriceMap={};
   stockRecords.forEach(r=>{ sellPriceMap[r.itemName]=r.sellPrice||sellPriceMap[r.itemName]||0; });
@@ -3214,21 +3266,10 @@ function renderInventory(){
   const allStockNames=new Set([...names0, ...Object.keys(stockState||{})]);
   const currentStockValueAll=[...allStockNames].reduce((s,n)=>{ const st=getStock(n); return s+Math.round(st.qty*(st.avgCost||0)*100)/100; },0);
 
-  // 期初庫存金額：有月結紀錄就直接結轉上一期的期末庫存金額；
-  // 沒有月結紀錄的話（例如還沒做過月結、但已經用「設定期初庫存」輸入過實際數量與成本），
-  // 用「目前庫存金額」反推回本期開始時的金額（目前金額－本期進貨金額＋本期銷售成本－本期盤點調整金額＋本期耗損金額），
-  // 這樣才會對到您自己設定的期初庫存與成本，不會顯示成$0。耗損要加回來，因為它是額外的「流出」，
-  // 不像盤點修正那樣可正可負，一定會讓庫存變少，反推期初時要補回去。
-  // 盤點修正／耗損的金額，直接用 periodTotals 裡已經算好、記錄「當下發生時」成本的 adjAmt／wasteAmt，
-  // 不要再用「現在」的平均成本重算一次——不然之後只要有新進貨改變了平均成本，連帶會讓「過去」
-  // 這幾筆修正／耗損的金額跟著變動，害期初庫存金額被不相干的後續進貨影響、無故浮動。
-  // （本期銷售成本目前仍只能用「目前平均成本」概算，因為銷售當下沒有另外鎖住成本，這點仍是近似值）
-  const costOfSoldAll=[...allStockNames].reduce((s,n)=>s+(soldMap[n]||0)*(getStock(n).avgCost||0),0);
-  const adjustValueAll=periodTotals.adjAmt||0;
-  const wasteValueAll=periodTotals.wasteAmt||0;
-  const beginValueTotal = beginCloseRec
-    ? (beginCloseRec.endValueTotal||0)
-    : Math.round((currentStockValueAll - periodTotals.inAmt + costOfSoldAll - adjustValueAll + wasteValueAll)*100)/100;
+  // 期初庫存金額：有月結紀錄就直接結轉上一期的期末庫存金額；沒有月結紀錄的話，
+  // 直接用 beginSnapshot 正向重播算出來的金額——不再用「目前庫存金額」反推，
+  // 徹底不受本期起始日之後任何新進貨、平均成本變動影響，數字永遠固定。
+  const beginValueTotal = beginCloseRec ? (beginCloseRec.endValueTotal||0) : beginSnapshot.valueTotal;
 
   const statusFilter=document.getElementById('inv-status-filter')?.value||'active';
   let namesAll; // 依「啟用／停用／全部」篩選，但不排除「不追蹤庫存」的品項——
@@ -3254,12 +3295,10 @@ function renderInventory(){
     const adjustQty=adjustMap[name]||0;
     const wasteQty=wasteMap[name]||0;
     const remaining=st.qty;
-    // 期初庫存：用「目前庫存」反推回本期開始時的庫存（剩餘－本期進貨＋本期銷售－盤盈盤損＋本期耗損），
-    // 不能只靠「上一次月結」的快照——店家還沒做過月結時快照不存在，直接顯示0會跟
-    // 「開始正式營業」時保留下來的真實庫存對不起來，變成「進貨0卻能賣」的矛盾畫面。
-    // 耗損要加回來，因為耗損只會讓庫存變少（不像盤點修正可正可負），反推期初時要補回去。
-    // 用反推公式可以保證這欄永遠跟本期進貨／銷售／盤盈盤損／耗損／剩餘庫存互相一致。
-    const beginQty=remaining-purchaseQty+sold-adjustQty+wasteQty;
+    // 期初庫存：直接讀 beginItemsMap（有月結用月結快照，沒月結用 computeBeginSnapshot
+    // 正向重播算出來的真實快照），不再用「目前庫存」反推——這樣才能保證期初庫存只跟
+    // 「起始日之前」發生過的事有關，不會被起始日之後的新進貨／平均成本變動影響。
+    const beginQty=beginItemsMap[name]?.qty||0;
     const avgCost=st.avgCost||0;
     const stockValue=Math.round(remaining*avgCost*100)/100;
     const sellPrice=sellPriceMap[name]||0;
@@ -3297,8 +3336,9 @@ function renderInventory(){
   const totalRate=totalRevEst>0?Math.round(totalProfit/totalRevEst*100):0;
   const totalAdjust=[...names].reduce((s,n)=>s+(adjustMap[n]||0),0);
   const totalWaste=[...names].reduce((s,n)=>s+(wasteMap[n]||0),0);
-  // 跟每一列同一套反推公式，確保合計列也永遠對得起來
-  const totalBegin=totalRemaining-totalIn+totalSold-totalAdjust+totalWaste;
+  // 跟每一列同一套邏輯，直接加總 beginItemsMap 快照，確保合計列永遠對得起來，
+  // 而且不會被本期起始日之後的新進貨影響
+  const totalBegin=[...names].reduce((s,n)=>s+(beginItemsMap[n]?.qty||0),0);
 
   // 庫存總覽卡片：periodTotals 已在函式開頭算好（跟月結預覽/月結紀錄同一套），這裡直接沿用
   const kpiEl=document.getElementById('inv-kpi-cards');
