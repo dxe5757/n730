@@ -436,6 +436,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-seri
       <button class="tbtn date-filter-btn" id="rpt-f-today" onclick="setRptFilter('today')">今日</button>
       <button class="tbtn date-filter-btn" id="rpt-f-week" onclick="setRptFilter('week')">本週</button>
       <button class="tbtn date-filter-btn" id="rpt-f-month" onclick="setRptFilter('month')">本月</button>
+      <input class="fi" id="rpt-month-picker" type="month" style="display:none;max-width:150px;" onchange="onRptMonthChange()">
       <button class="tbtn date-filter-btn" id="rpt-f-custom" onclick="setRptFilter('custom')">自訂日期</button>
       <input class="fi" id="rpt-custom-date" type="date" style="display:none;max-width:150px;" onchange="onRptCustomDateChange()">
       <div class="rpt-date-badge" style="margin-left:auto;">
@@ -1309,7 +1310,7 @@ function fmtCost(n){
 // cart: array of {menuId, rows:[{spice,pepper,sauce,itemDisc}]}
 // each row = 1 serial (串)
 let cart=[], currentCat='全部', expandedCart={};
-let rptFilterMode='today', rptCustomDate=null; // 報表：今日｜本週｜本月｜自訂日期
+let rptFilterMode='today', rptCustomDate=null, rptCustomMonth=null; // 報表：今日｜本週｜本月｜自訂日期（本月可選任一月份）
 let invFilterMode='today', invCustomDate=null; // 庫存異動：同上
 let pendingChecked={}; // {rowKey: bool} - survives re-renders
 
@@ -1787,14 +1788,22 @@ function markDone(id){
 function setRptFilter(mode){
   rptFilterMode=mode;
   const customEl=document.getElementById('rpt-custom-date');
+  const monthEl=document.getElementById('rpt-month-picker');
   if(mode==='custom'){
     if(customEl){ customEl.style.display='inline-block'; if(!customEl.value) customEl.value=todayStr(); rptCustomDate=customEl.value; }
   } else if(customEl){ customEl.style.display='none'; }
+  if(mode==='month'){
+    if(monthEl){ monthEl.style.display='inline-block'; if(!monthEl.value) monthEl.value=todayStr().slice(0,7); rptCustomMonth=monthEl.value; }
+  } else if(monthEl){ monthEl.style.display='none'; }
   updateRptFilterButtons();
   renderReport();
 }
 function onRptCustomDateChange(){
   rptCustomDate=document.getElementById('rpt-custom-date')?.value||todayStr();
+  renderReport();
+}
+function onRptMonthChange(){
+  rptCustomMonth=document.getElementById('rpt-month-picker')?.value||todayStr().slice(0,7);
   renderReport();
 }
 function updateRptFilterButtons(){
@@ -1943,9 +1952,10 @@ function renderReport(){
     stat=getRangeStats(wk.start, wk.end);
     rangeLabel=`本週（${dispDate(wk.start)}～${dispDate(wk.end)}）`;
   } else if(rptFilterMode==='month'){
-    const mo=getMonthRange(today);
+    const ym=rptCustomMonth||document.getElementById('rpt-month-picker')?.value||today.slice(0,7);
+    const mo=getMonthRange(ym+'-01');
     stat=getRangeStats(mo.start, mo.end);
-    rangeLabel=`本月（${dispDate(mo.start)}～${dispDate(mo.end)}）`;
+    rangeLabel=`${ym.replace('-','年')}月（${dispDate(mo.start)}～${dispDate(mo.end)}）`;
   } else if(rptFilterMode==='custom'){
     const d=rptCustomDate||document.getElementById('rpt-custom-date')?.value||today;
     stat=(d===bizDay)?getDayStats('__today__'):getDayStats(d);
@@ -2097,10 +2107,11 @@ function exportPDF(){
     label=`${wk.start}_至_${wk.end}`;
     rangeLabel=`本週（${dispDate(wk.start)}～${dispDate(wk.end)}）`;
   } else if(rptFilterMode==='month'){
-    const mo=getMonthRange(today);
+    const ym=rptCustomMonth||document.getElementById('rpt-month-picker')?.value||today.slice(0,7);
+    const mo=getMonthRange(ym+'-01');
     stat=getRangeStats(mo.start, mo.end);
     label=`${mo.start.slice(0,7)}`;
-    rangeLabel=`本月（${dispDate(mo.start)}～${dispDate(mo.end)}）`;
+    rangeLabel=`${ym.replace('-','年')}月（${dispDate(mo.start)}～${dispDate(mo.end)}）`;
   } else if(rptFilterMode==='custom'){
     const d=rptCustomDate||document.getElementById('rpt-custom-date')?.value||today;
     stat=(d===bizDay)?getDayStats('__today__'):getDayStats(d);
